@@ -4,6 +4,9 @@ import {
   MatcherLocation,
   isRouteName,
   RouteRecordName,
+  _RouteRecordProps,
+  RouteRecordSingleView,
+  RouteRecordMultipleViews,
 } from '../types'
 import { createRouterError, ErrorTypes, MatcherError } from '../errors'
 import { createRouteRecordMatcher, RouteRecordMatcher } from './pathMatcher'
@@ -53,6 +56,8 @@ export function createRouterMatcher(
     parent?: RouteRecordMatcher,
     originalRecord?: RouteRecordMatcher
   ) {
+    // used later on to remove by name
+    let isRootAdd = !originalRecord
     let mainNormalizedRecord = normalizeRouteRecord(record)
     // we might be the child of an alias
     mainNormalizedRecord.aliasOf = originalRecord && originalRecord.record
@@ -116,6 +121,11 @@ export function createRouterMatcher(
         // otherwise, the first record is the original and others are aliases
         originalMatcher = originalMatcher || matcher
         if (originalMatcher !== matcher) originalMatcher.alias.push(matcher)
+
+        // remove the route if named and only for the top record (avoid in nested calls)
+        // this works because the original record is the first one
+        if (isRootAdd && record.name && !isAliasRecord(matcher))
+          removeRoute(record.name)
       }
 
       // only non redirect records have children
@@ -314,20 +324,41 @@ export function normalizeRouteRecord(
       redirect: record.redirect,
     }
   } else {
+    const components =
+      'components' in record ? record.components : { default: record.component }
     return {
       ...commonInitialValues,
       beforeEnter: record.beforeEnter,
-      props: record.props || false,
+      props: normalizeRecordProps(record),
       children: record.children || [],
       instances: {},
       leaveGuards: [],
       updateGuards: [],
-      components:
-        'components' in record
-          ? record.components
-          : { default: record.component },
+      components,
     }
   }
+}
+
+/**
+ * Normalize the optional `props` in a record to always be an object similar to
+ * components. Also accept a boolean for components.
+ * @param record
+ */
+function normalizeRecordProps(
+  record: RouteRecordSingleView | RouteRecordMultipleViews
+): Record<string, _RouteRecordProps> {
+  const propsObject = {} as Record<string, _RouteRecordProps>
+  const props = record.props || false
+  if ('component' in record) {
+    propsObject.default = props
+  } else {
+    // NOTE: we could also allow a function to be applied to every component.
+    // Would need user feedback for use cases
+    for (let name in record.components)
+      propsObject[name] = typeof props === 'boolean' ? props : props[name]
+  }
+
+  return propsObject
 }
 
 /**

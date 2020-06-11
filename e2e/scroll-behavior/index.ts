@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory, ScrollBehavior } from '../../src'
 import { RouteComponent } from '../../src/types'
-import { createApp } from 'vue'
+import { createApp, ref } from 'vue'
 import { scrollWaiter } from './scrollWaiter'
 
 const Home: RouteComponent = { template: '<div class="home">home</div>' }
@@ -28,23 +28,26 @@ const scrollBehavior: ScrollBehavior = async function (
 ) {
   await scrollWaiter.promise
 
+  const behavior: ScrollOptions['behavior'] = smoothScroll.value
+    ? 'smooth'
+    : 'auto'
+
   if (savedPosition) {
     // savedPosition is only available for popstate navigations.
-    return savedPosition
+    return { ...savedPosition, behavior }
   } else {
     let position: ReturnType<ScrollBehavior>
 
     // scroll to anchor by returning the selector
     if (to.hash) {
-      position = { selector: to.hash }
+      position = { selector: decodeURI(to.hash), offset: { behavior } }
 
       // specify offset of the element
       if (to.hash === '#anchor2') {
-        position.offset = { y: 100 }
+        position.offset = { top: 100, behavior }
       }
 
-      // bypass #1number check
-      if (/^#\d/.test(to.hash) || document.querySelector(to.hash)) {
+      if (document.querySelector(position.selector)) {
         return position
       }
 
@@ -57,7 +60,7 @@ const scrollBehavior: ScrollBehavior = async function (
     if (to.matched.some(m => m.meta.scrollToTop)) {
       // coords will be used if no selector is provided,
       // or if the selector didn't match any element.
-      return { x: 0, y: 0 }
+      return { left: 0, top: 0, behavior }
     }
 
     return false
@@ -77,9 +80,13 @@ const router = createRouter({
 
 scrollWaiter.add()
 
+const smoothScroll = ref(false)
+
 const app = createApp({
   setup() {
     return {
+      smoothScroll,
+      hashWithNumber: { path: '/bar', hash: '#\\31 number' },
       flushWaiter: scrollWaiter.flush,
       setupWaiter: scrollWaiter.add,
     }
@@ -99,8 +106,11 @@ const app = createApp({
         <li><router-link to="/bar">/bar</router-link></li>
         <li><router-link to="/bar#anchor">/bar#anchor</router-link></li>
         <li><router-link to="/bar#anchor2">/bar#anchor2</router-link></li>
-        <li><router-link to="/bar#1number">/bar#1number</router-link></li>
+        <li><router-link :to="hashWithNumber">/bar#1number</router-link></li>
       </ul>
+      <label>
+      <input type="checkbox" v-model="smoothScroll"> Use smooth scroll
+      </label>
       <router-view class="view" v-slot="{ Component, props }">
         <transition
           name="fade"
