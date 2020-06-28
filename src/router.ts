@@ -30,20 +30,32 @@ import {
   NavigationFailure,
   NavigationRedirectError,
 } from './errors'
-import { applyToParams, isBrowser } from './utils'
+import { applyToParams, isBrowser, assign } from './utils'
 import { useCallbacks } from './utils/callbacks'
 import { encodeParam, decode, encodeHash } from './encoding'
 import {
   normalizeQuery,
   parseQuery as originalParseQuery,
   stringifyQuery as originalStringifyQuery,
+  LocationQuery,
 } from './query'
-import { shallowRef, Ref, nextTick, App } from 'vue'
+import {
+  shallowRef,
+  Ref,
+  nextTick,
+  App,
+  ComputedRef,
+  reactive,
+  unref,
+  computed,
+} from 'vue'
 import { RouteRecord, RouteRecordNormalized } from './matcher/types'
 import { parseURL, stringifyURL, isSameRouteLocation } from './location'
 import { extractComponentsGuards, guardToPromiseFn } from './navigationGuards'
-import { applyRouterPlugin } from './install'
 import { warn } from './warning'
+import { RouterLink } from './RouterLink'
+import { RouterView } from './RouterView'
+import { routerKey, routeLocationKey } from './injectionSymbols'
 
 /**
  * Internal type to define an ErrorHandler
@@ -128,6 +140,9 @@ export interface RouterOptions extends PathParserOptions {
 }
 
 export interface Router {
+  /**
+   * @internal
+   */
   readonly history: RouterHistory
   readonly currentRoute: Ref<RouteLocationNormalizedLoaded>
   readonly options: RouterOptions
@@ -249,20 +264,12 @@ export function createRouter(options: RouterOptions): Router {
         }
       }
 
-      return {
-        // fullPath: locationNormalized.fullPath,
-        // query: locationNormalized.query,
-        // hash: locationNormalized.hash,
-        ...locationNormalized,
-        ...matchedRoute,
-        // path: matchedRoute.path,
-        // name: matchedRoute.name,
-        // meta: matchedRoute.meta,
-        // matched: matchedRoute.matched,
+      // locationNormalized is always a new object
+      return assign(locationNormalized, matchedRoute, {
         params: decodeParams(matchedRoute.params),
         redirectedFrom: undefined,
         href: routerHistory.base + locationNormalized.fullPath,
-      }
+      })
     }
 
     let matcherLocation: MatcherLocationRaw
@@ -281,15 +288,13 @@ export function createRouter(options: RouterOptions): Router {
           }" was passed with params but they will be ignored. Use a named route alongside params instead.`
         )
       }
-      matcherLocation = {
-        ...rawLocation,
+      matcherLocation = assign({}, rawLocation, {
         path: parseURL(parseQuery, rawLocation.path, currentLocation.path).path,
-      }
+      })
     } else {
-      matcherLocation = {
-        ...rawLocation,
+      matcherLocation = assign({}, rawLocation, {
         params: encodeParams(rawLocation.params),
-      }
+      })
     }
 
     let matchedRoute = matcher.resolve(matcherLocation, currentLocation)
@@ -307,11 +312,13 @@ export function createRouter(options: RouterOptions): Router {
         ? normalizeParams(rawLocation.params)
         : decodeParams(matchedRoute.params)
 
-    const fullPath = stringifyURL(stringifyQuery, {
-      ...rawLocation,
-      hash,
-      path: matchedRoute.path,
-    })
+    const fullPath = stringifyURL(
+      stringifyQuery,
+      assign({}, rawLocation, {
+        hash,
+        path: matchedRoute.path,
+      })
+    )
 
     if (__DEV__) {
       let href = routerHistory.base + fullPath
@@ -328,22 +335,34 @@ export function createRouter(options: RouterOptions): Router {
       }
     }
 
-    return {
-      fullPath,
-      // keep the hash encoded so fullPath is effectively path + encodedQuery +
-      // hash
-      hash,
-      query: normalizeQuery(rawLocation.query),
-      ...matchedRoute,
-      redirectedFrom: undefined,
-      href: routerHistory.base + fullPath,
-    }
+    return assign(
+      {
+        fullPath,
+        // keep the hash encoded so fullPath is effectively path + encodedQuery +
+        // hash
+        hash,
+        query:
+          // if the user is using a custom query lib like qs, we might have
+          // nested objects, so we keep the query as is, meaning it can contain
+          // numbers at `$route.query`, but at the point, the user will have to
+          // use their own type anyway.
+          // https://github.com/vuejs/vue-router-next/issues/328#issuecomment-649481567
+          stringifyQuery === originalStringifyQuery
+            ? normalizeQuery(rawLocation.query)
+            : (rawLocation.query as LocationQuery),
+      },
+      matchedRoute,
+      {
+        redirectedFrom: undefined,
+        href: routerHistory.base + fullPath,
+      }
+    )
   }
 
   function locationAsObject(
     to: RouteLocationRaw | RouteLocationNormalized
   ): Exclude<RouteLocationRaw, string> | RouteLocationNormalized {
-    return typeof to === 'string' ? { path: to } : to
+    return typeof to === 'string' ? { path: to } : assign({}, to)
   }
 
   function push(to: RouteLocationRaw | RouteLocation) {
@@ -351,7 +370,7 @@ export function createRouter(options: RouterOptions): Router {
   }
 
   function replace(to: RouteLocationRaw | RouteLocationNormalized) {
-    return push({ ...locationAsObject(to), replace: true })
+    return push(assign(locationAsObject(to), { replace: true }))
   }
 
   function pushWithRedirect(
@@ -367,7 +386,7 @@ export function createRouter(options: RouterOptions): Router {
 
     const lastMatched =
       targetLocation.matched[targetLocation.matched.length - 1]
-    if (lastMatched && 'redirect' in lastMatched) {
+    if (lastMatched && lastMatched.redirect) {
       const { redirect } = lastMatched
       // transform it into an object to pass the original RouteLocaleOptions
       let newTargetLocation = locationAsObject(
@@ -386,23 +405,26 @@ export function createRouter(options: RouterOptions): Router {
             2
           )}\n when navigating to "${
             targetLocation.fullPath
-          }". A redirect must contain a name or path.`
+          }". A redirect must contain a name or path. This will break in production.`
         )
         return Promise.reject(new Error('Invalid redirect'))
       }
       return pushWithRedirect(
-        {
+        assign(
+          {},
           // having a path here would be a problem with relative locations but
           // at the same time it doesn't make sense for a redirect to be
           // relative (no name, no path) because it would create an infinite
           // loop. Since newTargetLocation must either have a `path` or a
           // `name`, this will never happen
-          ...targetLocation,
-          ...newTargetLocation,
-          state: data,
-          force,
-          replace,
-        },
+          targetLocation,
+          newTargetLocation,
+          {
+            state: data,
+            force,
+            replace,
+          }
+        ),
         // keep original redirectedFrom if it exists
         redirectedFrom || targetLocation
       )
@@ -414,7 +436,7 @@ export function createRouter(options: RouterOptions): Router {
     toLocation.redirectedFrom = redirectedFrom
     let failure: NavigationFailure | void | undefined
 
-    if (!force && isSameRouteLocation(from, targetLocation)) {
+    if (!force && isSameRouteLocation(stringifyQuery, from, targetLocation)) {
       failure = createRouterError<NavigationFailure>(
         ErrorTypes.NAVIGATION_DUPLICATED,
         { to: toLocation, from }
@@ -459,12 +481,11 @@ export function createRouter(options: RouterOptions): Router {
             // preserve the original redirectedFrom if any
             return pushWithRedirect(
               // keep options
-              {
-                ...locationAsObject(failure.to),
+              assign(locationAsObject(failure.to), {
                 state: data,
                 force,
                 replace,
-              },
+              }),
               redirectedFrom || toLocation
             )
         } else {
@@ -638,10 +659,15 @@ export function createRouter(options: RouterOptions): Router {
       // on the initial navigation, we want to reuse the scroll position from
       // history state if it exists
       if (replace || isFirstNavigation)
-        routerHistory.replace(toLocation, {
-          scroll: isFirstNavigation && state && state.scroll,
-          ...data,
-        })
+        routerHistory.replace(
+          toLocation,
+          assign(
+            {
+              scroll: isFirstNavigation && state && state.scroll,
+            },
+            data
+          )
+        )
       else routerHistory.push(toLocation, data)
     }
 
@@ -652,79 +678,82 @@ export function createRouter(options: RouterOptions): Router {
     markAsReady()
   }
 
+  let removeHistoryListener: () => void
   // attach listener to history to trigger navigations
-  routerHistory.listen((to, _from, info) => {
-    // TODO: in dev try catch to correctly log the matcher error
-    // cannot be a redirect route because it was in history
-    const toLocation = resolve(to.fullPath) as RouteLocationNormalized
+  function setupListeners() {
+    removeHistoryListener = routerHistory.listen((to, _from, info) => {
+      // TODO: in dev try catch to correctly log the matcher error
+      // cannot be a redirect route because it was in history
+      const toLocation = resolve(to.fullPath) as RouteLocationNormalized
 
-    pendingLocation = toLocation
-    const from = currentRoute.value
+      pendingLocation = toLocation
+      const from = currentRoute.value
 
-    // TODO: should be moved to web history?
-    if (isBrowser) {
-      saveScrollPosition(
-        getScrollKey(from.fullPath, info.delta),
-        computeScrollPosition()
-      )
-    }
+      // TODO: should be moved to web history?
+      if (isBrowser) {
+        saveScrollPosition(
+          getScrollKey(from.fullPath, info.delta),
+          computeScrollPosition()
+        )
+      }
 
-    navigate(toLocation, from)
-      .catch((error: NavigationFailure | NavigationRedirectError) => {
-        // a more recent navigation took place
-        if (pendingLocation !== toLocation) {
-          return createRouterError<NavigationFailure>(
-            ErrorTypes.NAVIGATION_CANCELLED,
-            {
-              from,
-              to: toLocation,
-            }
-          )
-        }
-        if (error.type === ErrorTypes.NAVIGATION_ABORTED) {
-          return error as NavigationFailure
-        }
-        if (error.type === ErrorTypes.NAVIGATION_GUARD_REDIRECT) {
+      navigate(toLocation, from)
+        .catch((error: NavigationFailure | NavigationRedirectError) => {
+          // a more recent navigation took place
+          if (pendingLocation !== toLocation) {
+            return createRouterError<NavigationFailure>(
+              ErrorTypes.NAVIGATION_CANCELLED,
+              {
+                from,
+                to: toLocation,
+              }
+            )
+          }
+          if (error.type === ErrorTypes.NAVIGATION_ABORTED) {
+            return error as NavigationFailure
+          }
+          if (error.type === ErrorTypes.NAVIGATION_GUARD_REDIRECT) {
+            routerHistory.go(-info.delta, false)
+            // the error is already handled by router.push we just want to avoid
+            // logging the error
+            pushWithRedirect(
+              (error as NavigationRedirectError).to,
+              toLocation
+            ).catch(() => {
+              // TODO: in dev show warning, in prod triggerError, same as initial navigation
+            })
+            // avoid the then branch
+            return Promise.reject()
+          }
+          // TODO: test on different browsers ensure consistent behavior
           routerHistory.go(-info.delta, false)
-          // the error is already handled by router.push we just want to avoid
-          // logging the error
-          pushWithRedirect(
-            (error as NavigationRedirectError).to,
-            toLocation
-          ).catch(() => {
-            // TODO: in dev show warning, in prod triggerError, same as initial navigation
-          })
-          // avoid the then branch
-          return Promise.reject()
-        }
-        // TODO: test on different browsers ensure consistent behavior
-        routerHistory.go(-info.delta, false)
-        // unrecognized error, transfer to the global handler
-        return triggerError(error)
-      })
-      .then((failure: NavigationFailure | void) => {
-        failure =
-          failure ||
-          finalizeNavigation(
-            // after navigation, all matched components are resolved
+          // unrecognized error, transfer to the global handler
+          return triggerError(error)
+        })
+        .then((failure: NavigationFailure | void) => {
+          failure =
+            failure ||
+            finalizeNavigation(
+              // after navigation, all matched components are resolved
+              toLocation as RouteLocationNormalizedLoaded,
+              from,
+              false
+            )
+
+          // revert the navigation
+          if (failure) routerHistory.go(-info.delta, false)
+
+          triggerAfterEach(
             toLocation as RouteLocationNormalizedLoaded,
             from,
-            false
+            failure
           )
-
-        // revert the navigation
-        if (failure) routerHistory.go(-info.delta, false)
-
-        triggerAfterEach(
-          toLocation as RouteLocationNormalizedLoaded,
-          from,
-          failure
-        )
-      })
-      .catch(() => {
-        // TODO: same as above
-      })
-  })
+        })
+        .catch(() => {
+          // TODO: same as above
+        })
+    })
+  }
 
   // Initialization and Errors
 
@@ -767,6 +796,7 @@ export function createRouter(options: RouterOptions): Router {
   function markAsReady(err?: any): void {
     if (ready) return
     ready = true
+    setupListeners()
     readyHandlers
       .list()
       .forEach(([resolve, reject]) => (err ? reject(err) : resolve()))
@@ -814,6 +844,9 @@ export function createRouter(options: RouterOptions): Router {
     )
   }
 
+  let started: boolean | undefined
+  const installedApps = new Set<App>()
+
   const router: Router = {
     currentRoute,
 
@@ -839,7 +872,58 @@ export function createRouter(options: RouterOptions): Router {
 
     history: routerHistory,
     install(app: App) {
-      applyRouterPlugin(app, this)
+      const router = this
+      app.component('RouterLink', RouterLink)
+      app.component('RouterView', RouterView)
+
+      // TODO: add tests
+      app.config.globalProperties.$router = router
+      Object.defineProperty(app.config.globalProperties, '$route', {
+        get: () => unref(currentRoute),
+      })
+
+      // this initial navigation is only necessary on client, on server it doesn't
+      // make sense because it will create an extra unnecessary navigation and could
+      // lead to problems
+      if (
+        isBrowser &&
+        // used for the initial navigation client side to avoid pushing
+        // multiple times when the router is used in multiple apps
+        !started &&
+        currentRoute.value === START_LOCATION_NORMALIZED
+      ) {
+        // see above
+        started = true
+        push(routerHistory.location.fullPath).catch(err => {
+          if (__DEV__) warn('Unexpected error when starting the router:', err)
+        })
+      }
+
+      const reactiveRoute = {} as {
+        [k in keyof RouteLocationNormalizedLoaded]: ComputedRef<
+          RouteLocationNormalizedLoaded[k]
+        >
+      }
+      for (let key in START_LOCATION_NORMALIZED) {
+        // @ts-ignore: the key matches
+        reactiveRoute[key] = computed(() => currentRoute.value[key])
+      }
+
+      app.provide(routerKey, router)
+      app.provide(routeLocationKey, reactive(reactiveRoute))
+
+      let unmountApp = app.unmount
+      installedApps.add(app)
+      app.unmount = function () {
+        installedApps.delete(app)
+        if (installedApps.size < 1) {
+          removeHistoryListener()
+          currentRoute.value = START_LOCATION_NORMALIZED
+          started = false
+          ready = false
+        }
+        unmountApp.call(this, arguments)
+      }
     },
   }
 
