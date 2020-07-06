@@ -29,8 +29,9 @@ import {
   ErrorTypes,
   NavigationFailure,
   NavigationRedirectError,
+  isNavigationFailure,
 } from './errors'
-import { applyToParams, isBrowser, assign } from './utils'
+import { applyToParams, isBrowser, assign, noop } from './utils'
 import { useCallbacks } from './utils/callbacks'
 import { encodeParam, decode, encodeHash } from './encoding'
 import {
@@ -143,7 +144,7 @@ export interface Router {
   /**
    * @internal
    */
-  readonly history: RouterHistory
+  // readonly history: RouterHistory
   readonly currentRoute: Ref<RouteLocationNormalizedLoaded>
   readonly options: RouterOptions
 
@@ -253,8 +254,8 @@ export function createRouter(options: RouterOptions): Router {
         currentLocation
       )
 
+      let href = routerHistory.createHref(locationNormalized.fullPath)
       if (__DEV__) {
-        let href = routerHistory.base + locationNormalized.fullPath
         if (href.startsWith('//'))
           warn(
             `Location "${rawLocation}" resolved to "${href}". A resolved location cannot start with multiple slashes.`
@@ -268,7 +269,7 @@ export function createRouter(options: RouterOptions): Router {
       return assign(locationNormalized, matchedRoute, {
         params: decodeParams(matchedRoute.params),
         redirectedFrom: undefined,
-        href: routerHistory.base + locationNormalized.fullPath,
+        href,
       })
     }
 
@@ -300,7 +301,7 @@ export function createRouter(options: RouterOptions): Router {
     let matchedRoute = matcher.resolve(matcherLocation, currentLocation)
     const hash = encodeHash(rawLocation.hash || '')
 
-    if (__DEV__ && hash && hash[0] !== '#') {
+    if (__DEV__ && hash && !hash.startsWith('#')) {
       warn(
         `A \`hash\` should always start with the character "#". Replace "${hash}" with "#${hash}".`
       )
@@ -320,8 +321,8 @@ export function createRouter(options: RouterOptions): Router {
       })
     )
 
+    let href = routerHistory.createHref(fullPath)
     if (__DEV__) {
-      let href = routerHistory.base + fullPath
       if (href.startsWith('//'))
         warn(
           `Location "${rawLocation}" resolved to "${href}". A resolved location cannot start with multiple slashes.`
@@ -354,7 +355,7 @@ export function createRouter(options: RouterOptions): Router {
       matchedRoute,
       {
         redirectedFrom: undefined,
-        href: routerHistory.base + fullPath,
+        href,
       }
     )
   }
@@ -363,6 +364,21 @@ export function createRouter(options: RouterOptions): Router {
     to: RouteLocationRaw | RouteLocationNormalized
   ): Exclude<RouteLocationRaw, string> | RouteLocationNormalized {
     return typeof to === 'string' ? { path: to } : assign({}, to)
+  }
+
+  function checkCanceledNavigation(
+    to: RouteLocationNormalized,
+    from: RouteLocationNormalized
+  ): NavigationFailure | void {
+    if (pendingLocation !== to) {
+      return createRouterError<NavigationFailure>(
+        ErrorTypes.NAVIGATION_CANCELLED,
+        {
+          from,
+          to,
+        }
+      )
+    }
   }
 
   function push(to: RouteLocationRaw | RouteLocation) {
@@ -456,19 +472,13 @@ export function createRouter(options: RouterOptions): Router {
 
     return (failure ? Promise.resolve(failure) : navigate(toLocation, from))
       .catch((error: NavigationFailure | NavigationRedirectError) => {
-        // a more recent navigation took place
-        if (pendingLocation !== toLocation) {
-          return createRouterError<NavigationFailure>(
-            ErrorTypes.NAVIGATION_CANCELLED,
-            {
-              from,
-              to: toLocation,
-            }
-          )
-        }
         if (
-          error.type === ErrorTypes.NAVIGATION_ABORTED ||
-          error.type === ErrorTypes.NAVIGATION_GUARD_REDIRECT
+          isNavigationFailure(
+            error,
+            ErrorTypes.NAVIGATION_ABORTED |
+              ErrorTypes.NAVIGATION_CANCELLED |
+              ErrorTypes.NAVIGATION_GUARD_REDIRECT
+          )
         ) {
           return error
         }
@@ -477,7 +487,9 @@ export function createRouter(options: RouterOptions): Router {
       })
       .then((failure: NavigationFailure | NavigationRedirectError | void) => {
         if (failure) {
-          if (failure.type === ErrorTypes.NAVIGATION_GUARD_REDIRECT)
+          if (
+            isNavigationFailure(failure, ErrorTypes.NAVIGATION_GUARD_REDIRECT)
+          )
             // preserve the original redirectedFrom if any
             return pushWithRedirect(
               // keep options
@@ -507,6 +519,21 @@ export function createRouter(options: RouterOptions): Router {
       })
   }
 
+  /**
+   * Helper to reject and skip all navigation guards if a new navigation happened
+   * @param to
+   * @param from
+   */
+  function checkCanceledNavigationAndReject(
+    to: RouteLocationNormalized,
+    from: RouteLocationNormalized
+  ): Promise<void> {
+    const error = checkCanceledNavigation(to, from)
+    return error ? Promise.reject(error) : Promise.resolve()
+  }
+
+  // TODO: refactor the whole before guards by internally using router.beforeEach
+
   function navigate(
     to: RouteLocationNormalized,
     from: RouteLocationNormalizedLoaded
@@ -533,77 +560,105 @@ export function createRouter(options: RouterOptions): Router {
       }
     }
 
+    const canceledNavigationCheck = checkCanceledNavigationAndReject.bind(
+      null,
+      to,
+      from
+    )
+
+    guards.push(canceledNavigationCheck)
+
     // run the queue of per route beforeRouteLeave guards
-    return runGuardQueue(guards)
-      .then(() => {
-        // check global guards beforeEach
-        guards = []
-        for (const guard of beforeGuards.list()) {
-          guards.push(guardToPromiseFn(guard, to, from))
-        }
-
-        return runGuardQueue(guards)
-      })
-      .then(() => {
-        // check in components beforeRouteUpdate
-        guards = extractComponentsGuards(
-          to.matched.filter(record => from.matched.indexOf(record as any) > -1),
-          'beforeRouteUpdate',
-          to,
-          from
-        )
-
-        for (const record of updatingRecords) {
-          for (const guard of record.updateGuards) {
+    return (
+      runGuardQueue(guards)
+        .then(() => {
+          // check global guards beforeEach
+          guards = []
+          for (const guard of beforeGuards.list()) {
             guards.push(guardToPromiseFn(guard, to, from))
           }
-        }
+          guards.push(canceledNavigationCheck)
 
-        // run the queue of per route beforeEnter guards
-        return runGuardQueue(guards)
-      })
-      .then(() => {
-        // check the route beforeEnter
-        guards = []
-        for (const record of to.matched) {
-          // do not trigger beforeEnter on reused views
-          if (record.beforeEnter && from.matched.indexOf(record as any) < 0) {
-            if (Array.isArray(record.beforeEnter)) {
-              for (const beforeEnter of record.beforeEnter)
-                guards.push(guardToPromiseFn(beforeEnter, to, from))
-            } else {
-              guards.push(guardToPromiseFn(record.beforeEnter, to, from))
+          return runGuardQueue(guards)
+        })
+        .then(() => {
+          // check in components beforeRouteUpdate
+          guards = extractComponentsGuards(
+            to.matched.filter(
+              record => from.matched.indexOf(record as any) > -1
+            ),
+            'beforeRouteUpdate',
+            to,
+            from
+          )
+
+          for (const record of updatingRecords) {
+            for (const guard of record.updateGuards) {
+              guards.push(guardToPromiseFn(guard, to, from))
             }
           }
-        }
+          guards.push(canceledNavigationCheck)
 
-        // run the queue of per route beforeEnter guards
-        return runGuardQueue(guards)
-      })
-      .then(() => {
-        // NOTE: at this point to.matched is normalized and does not contain any () => Promise<Component>
+          // run the queue of per route beforeEnter guards
+          return runGuardQueue(guards)
+        })
+        .then(() => {
+          // check the route beforeEnter
+          guards = []
+          for (const record of to.matched) {
+            // do not trigger beforeEnter on reused views
+            if (record.beforeEnter && from.matched.indexOf(record as any) < 0) {
+              if (Array.isArray(record.beforeEnter)) {
+                for (const beforeEnter of record.beforeEnter)
+                  guards.push(guardToPromiseFn(beforeEnter, to, from))
+              } else {
+                guards.push(guardToPromiseFn(record.beforeEnter, to, from))
+              }
+            }
+          }
+          guards.push(canceledNavigationCheck)
 
-        // check in-component beforeRouteEnter
-        guards = extractComponentsGuards(
-          // the type doesn't matter as we are comparing an object per reference
-          to.matched.filter(record => from.matched.indexOf(record as any) < 0),
-          'beforeRouteEnter',
-          to,
-          from
+          // run the queue of per route beforeEnter guards
+          return runGuardQueue(guards)
+        })
+        .then(() => {
+          // NOTE: at this point to.matched is normalized and does not contain any () => Promise<Component>
+
+          // clear existing enterCallbacks, these are added by extractComponentsGuards
+          to.matched.forEach(record => (record.enterCallbacks = []))
+
+          // check in-component beforeRouteEnter
+          guards = extractComponentsGuards(
+            // the type doesn't matter as we are comparing an object per reference
+            to.matched.filter(
+              record => from.matched.indexOf(record as any) < 0
+            ),
+            'beforeRouteEnter',
+            to,
+            from
+          )
+          guards.push(canceledNavigationCheck)
+
+          // run the queue of per route beforeEnter guards
+          return runGuardQueue(guards)
+        })
+        .then(() => {
+          // check global guards beforeResolve
+          guards = []
+          for (const guard of beforeResolveGuards.list()) {
+            guards.push(guardToPromiseFn(guard, to, from))
+          }
+          guards.push(canceledNavigationCheck)
+
+          return runGuardQueue(guards)
+        })
+        // catch any navigation canceled
+        .catch(err =>
+          isNavigationFailure(err, ErrorTypes.NAVIGATION_CANCELLED)
+            ? err
+            : Promise.reject(err)
         )
-
-        // run the queue of per route beforeEnter guards
-        return runGuardQueue(guards)
-      })
-      .then(() => {
-        // check global guards beforeResolve
-        guards = []
-        for (const guard of beforeResolveGuards.list()) {
-          guards.push(guardToPromiseFn(guard, to, from))
-        }
-
-        return runGuardQueue(guards)
-      })
+    )
   }
 
   function triggerAfterEach(
@@ -629,23 +684,14 @@ export function createRouter(options: RouterOptions): Router {
     data?: HistoryState
   ): NavigationFailure | void {
     // a more recent navigation took place
-    if (pendingLocation !== toLocation) {
-      return createRouterError<NavigationFailure>(
-        ErrorTypes.NAVIGATION_CANCELLED,
-        {
-          from,
-          to: toLocation,
-        }
-      )
-    }
+    const error = checkCanceledNavigation(toLocation, from)
+    if (error) return error
 
     const [leavingRecords] = extractChangingRecords(toLocation, from)
     for (const record of leavingRecords) {
       // remove registered guards from removed matched records
       record.leaveGuards = []
       // free the references
-
-      // TODO: to refactor once keep-alive and transition can be supported
       record.instances = {}
     }
 
@@ -660,7 +706,7 @@ export function createRouter(options: RouterOptions): Router {
       // history state if it exists
       if (replace || isFirstNavigation)
         routerHistory.replace(
-          toLocation,
+          toLocation.fullPath,
           assign(
             {
               scroll: isFirstNavigation && state && state.scroll,
@@ -668,7 +714,7 @@ export function createRouter(options: RouterOptions): Router {
             data
           )
         )
-      else routerHistory.push(toLocation, data)
+      else routerHistory.push(toLocation.fullPath, data)
     }
 
     // accept current navigation
@@ -682,9 +728,8 @@ export function createRouter(options: RouterOptions): Router {
   // attach listener to history to trigger navigations
   function setupListeners() {
     removeHistoryListener = routerHistory.listen((to, _from, info) => {
-      // TODO: in dev try catch to correctly log the matcher error
       // cannot be a redirect route because it was in history
-      const toLocation = resolve(to.fullPath) as RouteLocationNormalized
+      const toLocation = resolve(to) as RouteLocationNormalized
 
       pendingLocation = toLocation
       const from = currentRoute.value
@@ -699,34 +744,31 @@ export function createRouter(options: RouterOptions): Router {
 
       navigate(toLocation, from)
         .catch((error: NavigationFailure | NavigationRedirectError) => {
-          // a more recent navigation took place
-          if (pendingLocation !== toLocation) {
-            return createRouterError<NavigationFailure>(
-              ErrorTypes.NAVIGATION_CANCELLED,
-              {
-                from,
-                to: toLocation,
-              }
+          if (
+            isNavigationFailure(
+              error,
+              ErrorTypes.NAVIGATION_ABORTED | ErrorTypes.NAVIGATION_CANCELLED
             )
+          ) {
+            return error
           }
-          if (error.type === ErrorTypes.NAVIGATION_ABORTED) {
-            return error as NavigationFailure
-          }
-          if (error.type === ErrorTypes.NAVIGATION_GUARD_REDIRECT) {
-            routerHistory.go(-info.delta, false)
+          if (
+            isNavigationFailure(error, ErrorTypes.NAVIGATION_GUARD_REDIRECT)
+          ) {
+            // do not restore history on unknown direction
+            if (info.delta) routerHistory.go(-info.delta, false)
             // the error is already handled by router.push we just want to avoid
             // logging the error
             pushWithRedirect(
               (error as NavigationRedirectError).to,
               toLocation
-            ).catch(() => {
-              // TODO: in dev show warning, in prod triggerError, same as initial navigation
-            })
+              // avoid an uncaught rejection
+            ).catch(noop)
             // avoid the then branch
             return Promise.reject()
           }
-          // TODO: test on different browsers ensure consistent behavior
-          routerHistory.go(-info.delta, false)
+          // do not restore history on unknown direction
+          if (info.delta) routerHistory.go(-info.delta, false)
           // unrecognized error, transfer to the global handler
           return triggerError(error)
         })
@@ -741,7 +783,7 @@ export function createRouter(options: RouterOptions): Router {
             )
 
           // revert the navigation
-          if (failure) routerHistory.go(-info.delta, false)
+          if (failure && info.delta) routerHistory.go(-info.delta, false)
 
           triggerAfterEach(
             toLocation as RouteLocationNormalizedLoaded,
@@ -749,9 +791,7 @@ export function createRouter(options: RouterOptions): Router {
             failure
           )
         })
-        .catch(() => {
-          // TODO: same as above
-        })
+        .catch(noop)
     })
   }
 
@@ -870,13 +910,11 @@ export function createRouter(options: RouterOptions): Router {
     onError: errorHandlers.add,
     isReady,
 
-    history: routerHistory,
     install(app: App) {
       const router = this
       app.component('RouterLink', RouterLink)
       app.component('RouterView', RouterView)
 
-      // TODO: add tests
       app.config.globalProperties.$router = router
       Object.defineProperty(app.config.globalProperties, '$route', {
         get: () => unref(currentRoute),
@@ -894,7 +932,7 @@ export function createRouter(options: RouterOptions): Router {
       ) {
         // see above
         started = true
-        push(routerHistory.location.fullPath).catch(err => {
+        push(routerHistory.location).catch(err => {
           if (__DEV__) warn('Unexpected error when starting the router:', err)
         })
       }

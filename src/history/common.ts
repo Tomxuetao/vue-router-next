@@ -1,13 +1,7 @@
 import { isBrowser } from '../utils'
 import { removeTrailingSlash } from '../location'
 
-interface HistoryLocation {
-  fullPath: string
-  state?: HistoryState
-}
-
-export type RawHistoryLocation = HistoryLocation | string
-export type HistoryLocationNormalized = Pick<HistoryLocation, 'fullPath'>
+export type HistoryLocation = string
 // pushState clones the state passed and do not accept everything
 // it doesn't accept symbols, nor functions as values. It also ignores Symbols as keys
 type HistoryStateValue =
@@ -44,8 +38,8 @@ export interface NavigationInformation {
 
 export interface NavigationCallback {
   (
-    to: HistoryLocationNormalized,
-    from: HistoryLocationNormalized,
+    to: HistoryLocation,
+    from: HistoryLocation,
     information: NavigationInformation
   ): void
 }
@@ -53,10 +47,7 @@ export interface NavigationCallback {
 /**
  * Starting location for Histories
  */
-const START_PATH = ''
-export const START: HistoryLocationNormalized = {
-  fullPath: START_PATH,
-}
+export const START: HistoryLocation = ''
 
 export type ValueContainer<T> = { value: T }
 
@@ -76,7 +67,7 @@ export interface RouterHistory {
   /**
    * Current History location
    */
-  readonly location: HistoryLocationNormalized
+  readonly location: HistoryLocation
   /**
    * Current History state
    */
@@ -91,7 +82,7 @@ export interface RouterHistory {
    * @param data - optional {@link HistoryState} to be associated with the
    * navigation entry
    */
-  push(to: RawHistoryLocation, data?: HistoryState): void
+  push(to: HistoryLocation, data?: HistoryState): void
   /**
    * Same as {@link RouterHistory.push} but performs a `history.replaceState`
    * instead of `history.pushState`
@@ -100,7 +91,7 @@ export interface RouterHistory {
    * @param data - optional {@link HistoryState} to be associated with the
    * navigation entry
    */
-  replace(to: RawHistoryLocation, data?: HistoryState): void
+  replace(to: HistoryLocation, data?: HistoryState): void
 
   /**
    * Traverses history in a given direction.
@@ -128,25 +119,27 @@ export interface RouterHistory {
    * @returns a callback to remove the listener
    */
   listen(callback: NavigationCallback): () => void
+
+  /**
+   * Generates the corresponding href to be used in an anchor tag.
+   *
+   * @param location - history location that should create an href
+   */
+  createHref(location: HistoryLocation): string
+
+  /**
+   * Clears any event listener attached by the history implementation.
+   */
   destroy(): void
 }
 
 // Generic utils
 
-export function normalizeHistoryLocation(
-  location: RawHistoryLocation
-): HistoryLocationNormalized {
-  return {
-    // to avoid doing a typeof or in that is quite long
-    fullPath: (location as HistoryLocation).fullPath || (location as string),
-  }
-}
-
 /**
  * Normalizes a base by removing any trailing slash and reading the base tag if
  * present.
  *
- * @param base base to normalize
+ * @param base - base to normalize
  */
 export function normalizeBase(base?: string): string {
   if (!base) {
@@ -169,4 +162,10 @@ export function normalizeBase(base?: string): string {
   // remove the trailing slash so all other method can just do `base + fullPath`
   // to build an href
   return removeTrailingSlash(base)
+}
+
+// remove any character before the hash
+const BEFORE_HASH_RE = /^[^#]+#/
+export function createHref(base: string, location: HistoryLocation): string {
+  return base.replace(BEFORE_HASH_RE, '#') + location
 }

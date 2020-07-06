@@ -1,8 +1,19 @@
 import fakePromise from 'faked-promise'
 import { createRouter as newRouter, createMemoryHistory } from '../src'
-import { NavigationFailure, NavigationFailureType } from '../src/errors'
+import {
+  NavigationFailure,
+  NavigationFailureType,
+  isNavigationFailure,
+  createRouterError,
+  ErrorTypes,
+} from '../src/errors'
 import { components, tick } from './utils'
-import { RouteRecordRaw, NavigationGuard, RouteLocationRaw } from '../src/types'
+import {
+  RouteRecordRaw,
+  NavigationGuard,
+  RouteLocationRaw,
+  START_LOCATION_NORMALIZED,
+} from '../src/types'
 
 const routes: RouteRecordRaw[] = [
   { path: '/', component: components.Home },
@@ -101,8 +112,8 @@ describe('Errors & Navigation failures', () => {
     // should hang
     let navigationPromise = router.push('/foo')
 
+    expect(afterEach).toHaveBeenCalledTimes(0)
     await expect(router.push('/')).resolves.toEqual(undefined)
-    expect(afterEach).toHaveBeenCalledTimes(1)
     expect(onError).toHaveBeenCalledTimes(0)
 
     resolve()
@@ -110,7 +121,8 @@ describe('Errors & Navigation failures', () => {
     expect(afterEach).toHaveBeenCalledTimes(2)
     expect(onError).toHaveBeenCalledTimes(0)
 
-    expect(afterEach).toHaveBeenLastCalledWith(
+    expect(afterEach).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({ path: '/foo' }),
       from,
       expect.objectContaining({ type: NavigationFailureType.cancelled })
@@ -159,18 +171,12 @@ describe('Errors & Navigation failures', () => {
       let navigationPromise = router.push('/bar')
 
       // goes from /foo to /
+      expect(afterEach).toHaveBeenCalledTimes(0)
       history.go(-1)
 
       await tick()
 
-      expect(afterEach).toHaveBeenCalledTimes(1)
       expect(onError).toHaveBeenCalledTimes(0)
-      expect(afterEach).toHaveBeenLastCalledWith(
-        expect.objectContaining({ path: '/' }),
-        from,
-        undefined
-      )
-
       resolve()
       await expect(navigationPromise).resolves.toEqual(
         expect.objectContaining({ type: NavigationFailureType.cancelled })
@@ -179,10 +185,18 @@ describe('Errors & Navigation failures', () => {
       expect(afterEach).toHaveBeenCalledTimes(2)
       expect(onError).toHaveBeenCalledTimes(0)
 
-      expect(afterEach).toHaveBeenLastCalledWith(
+      expect(afterEach).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({ path: '/bar' }),
         from,
         expect.objectContaining({ type: NavigationFailureType.cancelled })
+      )
+
+      expect(afterEach).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ path: '/' }),
+        from,
+        undefined
       )
     })
 
@@ -229,6 +243,73 @@ describe('Errors & Navigation failures', () => {
         throw error
       }, error)
     })
+  })
+})
+
+describe('isNavigationFailure', () => {
+  const from = START_LOCATION_NORMALIZED
+  const to = from
+  it('non objects', () => {
+    expect(isNavigationFailure(null)).toBe(false)
+    expect(isNavigationFailure(true)).toBe(false)
+    expect(isNavigationFailure(false)).toBe(false)
+  })
+
+  it('errors', () => {
+    expect(isNavigationFailure(new Error())).toBe(false)
+  })
+
+  it('any navigation failure', () => {
+    expect(
+      isNavigationFailure(
+        createRouterError<NavigationFailure>(ErrorTypes.NAVIGATION_ABORTED, {
+          from,
+          to,
+        })
+      )
+    ).toBe(true)
+  })
+
+  it('specific navigation failure', () => {
+    expect(
+      isNavigationFailure(
+        createRouterError<NavigationFailure>(ErrorTypes.NAVIGATION_ABORTED, {
+          from,
+          to,
+        }),
+        NavigationFailureType.aborted
+      )
+    ).toBe(true)
+  })
+
+  it('multiple navigation failure types', () => {
+    expect(
+      isNavigationFailure(
+        createRouterError<NavigationFailure>(ErrorTypes.NAVIGATION_ABORTED, {
+          from,
+          to,
+        }),
+        NavigationFailureType.aborted | NavigationFailureType.cancelled
+      )
+    ).toBe(true)
+    expect(
+      isNavigationFailure(
+        createRouterError<NavigationFailure>(ErrorTypes.NAVIGATION_CANCELLED, {
+          from,
+          to,
+        }),
+        NavigationFailureType.aborted | NavigationFailureType.cancelled
+      )
+    ).toBe(true)
+    expect(
+      isNavigationFailure(
+        createRouterError<NavigationFailure>(ErrorTypes.NAVIGATION_DUPLICATED, {
+          from,
+          to,
+        }),
+        NavigationFailureType.aborted | NavigationFailureType.cancelled
+      )
+    ).toBe(false)
   })
 })
 

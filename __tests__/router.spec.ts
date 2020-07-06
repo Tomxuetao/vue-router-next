@@ -1,5 +1,10 @@
 import fakePromise from 'faked-promise'
-import { createRouter, createMemoryHistory, createWebHistory } from '../src'
+import {
+  createRouter,
+  createMemoryHistory,
+  createWebHistory,
+  createWebHashHistory,
+} from '../src'
 import { NavigationFailureType } from '../src/errors'
 import { createDom, components, tick, nextNavigation } from './utils'
 import {
@@ -97,15 +102,7 @@ describe('Router', () => {
     jest.spyOn(history, 'push')
     await router.push('/foo')
     expect(history.push).toHaveBeenCalledTimes(1)
-    expect(history.push).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullPath: '/foo',
-        path: '/foo',
-        query: {},
-        hash: '',
-      }),
-      undefined
-    )
+    expect(history.push).toHaveBeenCalledWith('/foo', undefined)
   })
 
   it('calls history.replace with router.replace', async () => {
@@ -114,15 +111,7 @@ describe('Router', () => {
     jest.spyOn(history, 'replace')
     await router.replace('/foo')
     expect(history.replace).toHaveBeenCalledTimes(1)
-    expect(history.replace).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullPath: '/foo',
-        path: '/foo',
-        query: {},
-        hash: '',
-      }),
-      expect.anything()
-    )
+    expect(history.replace).toHaveBeenCalledWith('/foo', expect.anything())
   })
 
   it('replaces if a guard redirects', async () => {
@@ -133,15 +122,7 @@ describe('Router', () => {
     jest.spyOn(history, 'replace')
     await router.replace('/home-before')
     expect(history.replace).toHaveBeenCalledTimes(1)
-    expect(history.replace).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullPath: '/',
-        path: '/',
-        query: {},
-        hash: '',
-      }),
-      expect.anything()
-    )
+    expect(history.replace).toHaveBeenCalledWith('/', expect.anything())
   })
 
   it('allows to customize parseQuery', async () => {
@@ -178,6 +159,27 @@ describe('Router', () => {
     expect(router.currentRoute.value).not.toBe(START_LOCATION_NORMALIZED)
   })
 
+  it('resolves hash history as a relative hash link', async () => {
+    let history = createWebHashHistory()
+    let { router } = await newRouter({ history })
+    expect(router.resolve('/foo?bar=baz#hey')).toMatchObject({
+      fullPath: '/foo?bar=baz#hey',
+      href: '#/foo?bar=baz#hey',
+    })
+    history = createWebHashHistory('/with/base/')
+    ;({ router } = await newRouter({ history }))
+    expect(router.resolve('/foo?bar=baz#hey')).toMatchObject({
+      fullPath: '/foo?bar=baz#hey',
+      href: '#/foo?bar=baz#hey',
+    })
+    history = createWebHashHistory('/with/#/base/')
+    ;({ router } = await newRouter({ history }))
+    expect(router.resolve('/foo?bar=baz#hey')).toMatchObject({
+      fullPath: '/foo?bar=baz#hey',
+      href: '#/base/foo?bar=baz#hey',
+    })
+  })
+
   it('can await router.go', async () => {
     const { router } = await newRouter()
     await router.push('/foo')
@@ -200,15 +202,7 @@ describe('Router', () => {
     jest.spyOn(history, 'replace')
     await router.push({ path: '/foo', replace: true })
     expect(history.replace).toHaveBeenCalledTimes(1)
-    expect(history.replace).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullPath: '/foo',
-        path: '/foo',
-        query: {},
-        hash: '',
-      }),
-      expect.anything()
-    )
+    expect(history.replace).toHaveBeenCalledWith('/foo', expect.anything())
   })
 
   it('can replaces current location with a string location', async () => {
@@ -216,15 +210,7 @@ describe('Router', () => {
     jest.spyOn(history, 'replace')
     await router.replace('/foo')
     expect(history.replace).toHaveBeenCalledTimes(1)
-    expect(history.replace).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullPath: '/foo',
-        path: '/foo',
-        query: {},
-        hash: '',
-      }),
-      expect.anything()
-    )
+    expect(history.replace).toHaveBeenCalledWith('/foo', expect.anything())
   })
 
   it('can replaces current location with an object location', async () => {
@@ -232,15 +218,7 @@ describe('Router', () => {
     jest.spyOn(history, 'replace')
     await router.replace({ path: '/foo' })
     expect(history.replace).toHaveBeenCalledTimes(1)
-    expect(history.replace).toHaveBeenCalledWith(
-      expect.objectContaining({
-        fullPath: '/foo',
-        path: '/foo',
-        query: {},
-        hash: '',
-      }),
-      expect.anything()
-    )
+    expect(history.replace).toHaveBeenCalledWith('/foo', expect.anything())
   })
 
   it('navigates if the location does not exist', async () => {
