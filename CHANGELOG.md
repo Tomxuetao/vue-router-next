@@ -1,3 +1,38 @@
+# [4.0.0-beta.9](https://github.com/vuejs/vue-router-next/compare/v4.0.0-beta.8...v4.0.0-beta.9) (2020-09-01)
+
+Build related fixes
+
+# [4.0.0-beta.8](https://github.com/vuejs/vue-router-next/compare/v4.0.0-beta.7...v4.0.0-beta.8) (2020-09-01)
+
+### Bug Fixes
+
+- **router-view:** reuse saved instances in different records ([#446](https://github.com/vuejs/vue-router-next/issues/446)) ([6554171](https://github.com/vuejs/vue-router-next/commit/65541718b0d5af665fd87dc0e48770cba832a2bb))
+- **types:** add HTML attributes for JSX ([06f3f8f](https://github.com/vuejs/vue-router-next/commit/06f3f8fd7c3a32da331802fe5d3d19ced17200a3)), closes [#435](https://github.com/vuejs/vue-router-next/issues/435)
+- **types:** allow components defined via defineComponent ([#421](https://github.com/vuejs/vue-router-next/issues/421)) ([e47c84c](https://github.com/vuejs/vue-router-next/commit/e47c84c74a97ae7bb9095ea75f98a6fa8a216532))
+
+### BREAKING CHANGES
+
+- **router-view:** `onBeforeRouteLeave` and `onBeforeRouteUpdate` used to
+  have access to the component instance through `instance.proxy` but given
+  that:
+  1. It has been marked as `internal` (https://github.com/vuejs/vue-next/pull/1849)
+  2. When using `setup`, all variables are accessible on the scope (and
+     should be accessed that way because the code minimizes better)
+     It has been removed to prevent wrong usage and lighten Vue Router
+
+# [4.0.0-beta.7](https://github.com/vuejs/vue-router-next/compare/v4.0.0-beta.6...v4.0.0-beta.7) (2020-08-19)
+
+### Bug Fixes
+
+- **encoding:** encode partial params ([eb04117](https://github.com/vuejs/vue-router-next/commit/eb041175c02ab0dac093823574a85bbbbf2056eb))
+- **matcher:** avoid trailing slash with optional params ([faf0aab](https://github.com/vuejs/vue-router-next/commit/faf0aab6451848e5b4330e1d01033137a0c42a5a))
+- **types:** append declare module ([50ad404](https://github.com/vuejs/vue-router-next/commit/50ad404ae45086f051b01ac552e4a3ab98535633)), closes [#419](https://github.com/vuejs/vue-router-next/issues/419)
+- **vetur:** update tags/attributes definition ([#408](https://github.com/vuejs/vue-router-next/issues/408)) ([df8b2b1](https://github.com/vuejs/vue-router-next/commit/df8b2b140155d1e4ad5d00cd17d57ab2046a75e2))
+
+### Features
+
+- **warn:** warn against infinite redirections ([e3dcc8d](https://github.com/vuejs/vue-router-next/commit/e3dcc8d9477e17f9b92e22787b750edc4658b77a))
+
 # [4.0.0-beta.6](https://github.com/vuejs/vue-router-next/compare/v4.0.0-beta.5...v4.0.0-beta.6) (2020-08-05)
 
 ### Bug Fixes

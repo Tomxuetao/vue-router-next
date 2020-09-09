@@ -1,6 +1,6 @@
 import { LocationQuery, LocationQueryRaw } from '../query'
 import { PathParserOptions } from '../matcher'
-import { Ref, ComputedRef, Component, ComponentPublicInstance } from 'vue'
+import { Ref, ComputedRef, ComponentPublicInstance, Component } from 'vue'
 import { RouteRecord, RouteRecordNormalized } from '../matcher/types'
 import { HistoryState } from '../history/common'
 import { NavigationFailure } from '../errors'
@@ -121,7 +121,7 @@ export interface _RouteLocationBase {
   /**
    * Merged `meta` properties from all of the matched route records.
    */
-  meta: Record<string | number | symbol, any>
+  meta: RouteMeta
 }
 
 // matched contains resolved components
@@ -177,6 +177,7 @@ export type _RouteRecordProps =
 // TODO: could this be moved to matcher?
 /**
  * Common properties among all kind of {@link RouteRecordRaw}
+ * @internal
  */
 export interface _RouteRecordBase extends PathParserOptions {
   /**
@@ -216,13 +217,18 @@ export interface _RouteRecordBase extends PathParserOptions {
   /**
    * Arbitrary data attached to the record.
    */
-  meta?: Record<string | number | symbol, any>
+  meta?: RouteMeta
 }
+
+export interface RouteMeta extends Record<string | number | symbol, any> {}
 
 export type RouteRecordRedirectOption =
   | RouteLocationRaw
   | ((to: RouteLocation) => RouteLocationRaw)
 
+/**
+ * Route Record defining one single component with the `component` option.
+ */
 export interface RouteRecordSingleView extends _RouteRecordBase {
   /**
    * Component to display when the URL matches this route.
@@ -234,6 +240,9 @@ export interface RouteRecordSingleView extends _RouteRecordBase {
   props?: _RouteRecordProps
 }
 
+/**
+ * Route Record defining multiple named components with the `components` option.
+ */
 export interface RouteRecordMultipleViews extends _RouteRecordBase {
   /**
    * Components to display when the URL matches this route. Allow using named views.
@@ -247,6 +256,10 @@ export interface RouteRecordMultipleViews extends _RouteRecordBase {
   props?: Record<string, _RouteRecordProps> | boolean
 }
 
+/**
+ * Route Record that defines a redirect. Cannot have `component`, `components` or
+ * `children` as it is never rendered.
+ */
 export interface RouteRecordRedirect extends _RouteRecordBase {
   redirect: RouteRecordRedirectOption
   component?: never
@@ -254,16 +267,26 @@ export interface RouteRecordRedirect extends _RouteRecordBase {
   children?: never
 }
 
-export interface RouteRecordRedirectWithChildren extends _RouteRecordBase {
-  component?: never
-  children: Exclude<_RouteRecordBase['children'], undefined>
-}
-
 export type RouteRecordRaw =
   | RouteRecordSingleView
   | RouteRecordMultipleViews
   | RouteRecordRedirect
 
+/**
+ * Initial route location where the router is. Can be used in navigation guards
+ * to differentiate the initial navigation.
+ *
+ * @example
+ * ```js
+ * import { START_LOCATION } from 'vue-router'
+ *
+ * router.beforeEach((to, from) => {
+ *   if (from === START_LOCATION) {
+ *     // initial navigation
+ *   }
+ * })
+ * ```
+ */
 export const START_LOCATION_NORMALIZED: RouteLocationNormalizedLoaded = {
   path: '/',
   name: undefined,
@@ -320,6 +343,10 @@ export type NavigationGuardReturn =
   | boolean
   | NavigationGuardNextCallback
 
+/**
+ * Navigation guard. See [Navigation
+ * Guards](/guide/advanced/navigation-guards.md).
+ */
 export interface NavigationGuard {
   (
     // TODO: we could maybe add extra information like replace: true/false
@@ -329,6 +356,9 @@ export interface NavigationGuard {
   ): NavigationGuardReturn | Promise<NavigationGuardReturn>
 }
 
+/**
+ * {@inheritDoc NavigationGuard}
+ */
 export interface NavigationGuardWithThis<T> {
   (
     this: T,
@@ -338,7 +368,7 @@ export interface NavigationGuardWithThis<T> {
   ): NavigationGuardReturn | Promise<NavigationGuardReturn>
 }
 
-export interface PostNavigationGuard {
+export interface NavigationHookAfter {
   (
     to: RouteLocationNormalized,
     from: RouteLocationNormalized,

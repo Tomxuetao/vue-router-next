@@ -17,24 +17,39 @@ import {
   NavigationFailure,
   NavigationRedirectError,
 } from './errors'
-import { ComponentOptions } from 'vue'
+import { ComponentOptions, onUnmounted, onActivated, onDeactivated } from 'vue'
 import { inject, getCurrentInstance, warn } from 'vue'
 import { matchedRouteKey } from './injectionSymbols'
 import { RouteRecordNormalized } from './matcher/types'
 import { isESModule } from './utils'
 
+function registerGuard(list: NavigationGuard[], guard: NavigationGuard) {
+  const removeFromList = () => {
+    const index = list.indexOf(guard)
+    if (index > -1) list.splice(index, 1)
+  }
+
+  onUnmounted(removeFromList)
+  onDeactivated(removeFromList)
+
+  onActivated(() => {
+    const index = list.indexOf(guard)
+    if (index < 0) list.push(guard)
+  })
+
+  list.push(guard)
+}
+
 /**
- * Add a navigation guard that triggers whenever the current location is
- * left. Similarly to {@link beforeRouteLeave}, it has access to the
- * component instance as `this`.
+ * Add a navigation guard that triggers whenever the component for the current
+ * location is about to be left. Similar to {@link beforeRouteLeave} but can be
+ * used in any component. The guard is removed when the component is unmounted.
  *
  * @param leaveGuard - {@link NavigationGuard}
  */
 export function onBeforeRouteLeave(leaveGuard: NavigationGuard) {
-  const instance = getCurrentInstance()
-  if (!instance) {
-    __DEV__ &&
-      warn('onBeforeRouteLeave must be called at the top of a setup function')
+  if (__DEV__ && !getCurrentInstance()) {
+    warn('onBeforeRouteLeave must be called at the top of a setup function')
     return
   }
 
@@ -49,24 +64,19 @@ export function onBeforeRouteLeave(leaveGuard: NavigationGuard) {
     return
   }
 
-  activeRecord.leaveGuards.push(
-    // @ts-ignore do we even want to allow that? Passing the context in a composition api hook doesn't make sense
-    leaveGuard.bind(instance.proxy)
-  )
+  registerGuard(activeRecord.leaveGuards, leaveGuard)
 }
 
 /**
- * Add a navigation guard that triggers whenever the current location is
- * updated. Similarly to {@link beforeRouteUpdate}, it has access to the
- * component instance as `this`.
+ * Add a navigation guard that triggers whenever the current location is about
+ * to be updated. Similar to {@link beforeRouteUpdate} but can be used in any
+ * component. The guard is removed when the component is unmounted.
  *
  * @param updateGuard - {@link NavigationGuard}
  */
 export function onBeforeRouteUpdate(updateGuard: NavigationGuard) {
-  const instance = getCurrentInstance()
-  if (!instance) {
-    __DEV__ &&
-      warn('onBeforeRouteUpdate must be called at the top of a setup function')
+  if (__DEV__ && !getCurrentInstance()) {
+    warn('onBeforeRouteUpdate must be called at the top of a setup function')
     return
   }
 
@@ -81,10 +91,7 @@ export function onBeforeRouteUpdate(updateGuard: NavigationGuard) {
     return
   }
 
-  activeRecord.updateGuards.push(
-    // @ts-ignore do we even want to allow that? Passing the context in a composition api hook doesn't make sense
-    updateGuard.bind(instance.proxy)
-  )
+  registerGuard(activeRecord.updateGuards, updateGuard)
 }
 
 export function guardToPromiseFn(
@@ -152,27 +159,38 @@ export function guardToPromiseFn(
       }
 
       // wrapping with Promise.resolve allows it to work with both async and sync guards
-      let guardCall = Promise.resolve(
-        guard.call(
-          record && record.instances[name!],
-          to,
-          from,
-          __DEV__ ? canOnlyBeCalledOnce(next, to, from) : next
-        )
+      const guardReturn = guard.call(
+        record && record.instances[name!],
+        to,
+        from,
+        __DEV__ ? canOnlyBeCalledOnce(next, to, from) : next
       )
+      let guardCall = Promise.resolve(guardReturn)
 
       if (guard.length < 3) guardCall = guardCall.then(next)
-      if (__DEV__ && guard.length > 2)
-        guardCall = guardCall.then(() => {
+      if (__DEV__ && guard.length > 2) {
+        const message = `The "next" callback was never called inside of ${
+          guard.name ? '"' + guard.name + '"' : ''
+        }:\n${guard.toString()}\n. If you are returning a value instead of calling "next", make sure to remove the "next" parameter from your function.`
+        if (typeof guardReturn === 'object' && 'then' in guardReturn) {
+          guardCall = guardCall.then(resolvedValue => {
+            // @ts-ignore: _called is added at canOnlyBeCalledOnce
+            if (!next._called) {
+              warn(message)
+              return Promise.reject(new Error('Invalid navigation guard'))
+            }
+            return resolvedValue
+          })
+          // TODO: test me!
+        } else if (guardReturn !== undefined) {
           // @ts-ignore: _called is added at canOnlyBeCalledOnce
-          if (!next._called)
-            warn(
-              `The "next" callback was never called inside of ${
-                guard.name ? '"' + guard.name + '"' : ''
-              }:\n${guard.toString()}\n. If you are returning a value instead of calling "next", make sure to remove the "next" parameter from your function.`
-            )
-          return Promise.reject(new Error('Invalid navigation guard'))
-        })
+          if (!next._called) {
+            warn(message)
+            reject(new Error('Invalid navigation guard'))
+            return
+          }
+        }
+      }
       guardCall.catch(err => reject(err))
     })
 }
