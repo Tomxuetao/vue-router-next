@@ -35,17 +35,13 @@ export interface LocationAsPath {
   path: string
 }
 
-export interface LocationAsNameRaw {
-  name: RouteRecordName
-  params?: RouteParamsRaw
-}
-
 export interface LocationAsName {
   name: RouteRecordName
   params?: RouteParams
 }
 
 export interface LocationAsRelativeRaw {
+  name?: RouteRecordName
   params?: RouteParamsRaw
 }
 
@@ -74,7 +70,6 @@ export interface RouteLocationOptions {
 export type RouteLocationRaw =
   | string
   | (RouteQueryAndHash & LocationAsPath & RouteLocationOptions)
-  | (RouteQueryAndHash & LocationAsNameRaw & RouteLocationOptions)
   | (RouteQueryAndHash & LocationAsRelativeRaw & RouteLocationOptions)
 
 export interface RouteLocationMatched extends RouteRecordNormalized {
@@ -220,6 +215,9 @@ export interface _RouteRecordBase extends PathParserOptions {
   meta?: RouteMeta
 }
 
+/**
+ * Interface to type `meta` fields in route records.
+ */
 export interface RouteMeta extends Record<string | number | symbol, any> {}
 
 export type RouteRecordRedirectOption =
@@ -234,6 +232,7 @@ export interface RouteRecordSingleView extends _RouteRecordBase {
    * Component to display when the URL matches this route.
    */
   component: RawRouteComponent
+  components?: never
   /**
    * Allow passing down params as props to the component rendered by `router-view`.
    */
@@ -248,6 +247,7 @@ export interface RouteRecordMultipleViews extends _RouteRecordBase {
    * Components to display when the URL matches this route. Allow using named views.
    */
   components: Record<string, RawRouteComponent>
+  component?: never
   /**
    * Allow passing down params as props to the component rendered by
    * `router-view`. Should be an object with the same keys as `components` or a
@@ -257,14 +257,13 @@ export interface RouteRecordMultipleViews extends _RouteRecordBase {
 }
 
 /**
- * Route Record that defines a redirect. Cannot have `component`, `components` or
- * `children` as it is never rendered.
+ * Route Record that defines a redirect. Cannot have `component` or `components`
+ * as it is never rendered.
  */
 export interface RouteRecordRedirect extends _RouteRecordBase {
   redirect: RouteRecordRedirectOption
   component?: never
   components?: never
-  children?: never
 }
 
 export type RouteRecordRaw =

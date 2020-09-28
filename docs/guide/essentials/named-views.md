@@ -3,9 +3,9 @@
 Sometimes you need to display multiple views at the same time instead of nesting them, e.g. creating a layout with a `sidebar` view and a `main` view. This is where named views come in handy. Instead of having one single outlet in your view, you can have multiple and give each of them a name. A `router-view` without a name will be given `default` as its name.
 
 ```html
-<router-view class="view left-sidebar" name="left-sidebar"></router-view>
+<router-view class="view left-sidebar" name="LeftSidebar"></router-view>
 <router-view class="view main-content"></router-view>
-<router-view class="view right-sidebar" name="right-sidebar"></router-view>
+<router-view class="view right-sidebar" name="RightSidebar"></router-view>
 ```
 
 A view is rendered by using a component, therefore multiple views require
@@ -20,17 +20,17 @@ const router = createRouter({
       path: '/',
       components: {
         default: Home,
-        a: LeftSidebar,
-        b: RightSidebar,
+        // short for LeftSidebar: LeftSidebar
+        LeftSidebar,
+        // they match the `name` attribute on `<router-view>`
+        RightSidebar,
       },
     },
   ],
 })
 ```
 
-<!-- TODO: use inline example -->
-
-A working demo of this example can be found [here](https://jsfiddle.net/posva/6du90epg/).
+A working demo of this example can be found [here](https://codesandbox.io/s/named-views-vue-router-4-examples-rd20l).
 
 ## Nested Named Views
 
@@ -86,4 +86,4 @@ Then you can achieve the layout above with this route configuration:
 }
 ```
 
-A working demo of this example can be found [here](https://jsfiddle.net/posva/22wgksa3/).
+A working demo of this example can be found [here](https://codesandbox.io/s/nested-named-views-vue-router-4-examples-re9yl?&initialpath=%2Fsettings%2Femails).

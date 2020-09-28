@@ -15,6 +15,7 @@ import { isSameRouteLocationParams, isSameRouteRecord } from './location'
 import { routerKey, routeLocationKey } from './injectionSymbols'
 import { RouteRecord } from './matcher/types'
 import { assign } from './utils'
+import { NavigationFailure } from './errors'
 
 export interface RouterLinkOptions {
   /**
@@ -107,7 +108,9 @@ export function useLink(props: UseLinkOptions) {
       isSameRouteLocationParams(currentRoute.params, route.value.params)
   )
 
-  function navigate(e: MouseEvent = {} as MouseEvent): Promise<any> {
+  function navigate(
+    e: MouseEvent = {} as MouseEvent
+  ): Promise<void | NavigationFailure> {
     if (guardEvent(e))
       return router[unref(props.replace) ? 'replace' : 'push'](unref(props.to))
     return Promise.resolve()
@@ -188,6 +191,9 @@ export const RouterLinkImpl = defineComponent({
 
 // export the public type for h/tsx inference
 // also to avoid inline import() in generated d.ts files
+/**
+ * Component to render a link that triggers a navigation on click.
+ */
 export const RouterLink = (RouterLinkImpl as any) as {
   new (): {
     $props: AllowedComponentProps &

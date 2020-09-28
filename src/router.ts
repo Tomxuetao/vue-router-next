@@ -68,7 +68,10 @@ type OnReadyCallback = [() => void, (reason?: any) => void]
 
 type Awaitable<T> = T | Promise<T>
 
-export interface ScrollBehavior {
+/**
+ * Type of the `scrollBehavior` option that can be passed to `createRouter`.
+ */
+export interface RouterScrollBehavior {
   /**
    * @param to - Route location where we are navigating to
    * @param from - Route location where we are navigating from
@@ -81,6 +84,9 @@ export interface ScrollBehavior {
   ): Awaitable<ScrollPosition | false | void>
 }
 
+/**
+ * Options to initialize a {@link Router} instance.
+ */
 export interface RouterOptions extends PathParserOptions {
   /**
    * History implementation used by the router. Most web applications should use
@@ -114,7 +120,7 @@ export interface RouterOptions extends PathParserOptions {
    * }
    * ```
    */
-  scrollBehavior?: ScrollBehavior
+  scrollBehavior?: RouterScrollBehavior
   /**
    * Custom implementation to parse a query. See its counterpart,
    * {@link RouterOptions.stringifyQuery}.
@@ -155,6 +161,9 @@ export interface RouterOptions extends PathParserOptions {
   // linkInactiveClass?: string
 }
 
+/**
+ * Router instance
+ */
 export interface Router {
   /**
    * @internal
@@ -224,25 +233,22 @@ export interface Router {
   replace(to: RouteLocationRaw): Promise<NavigationFailure | void | undefined>
   /**
    * Go back in history if possible by calling `history.back()`. Equivalent to
-   * `router.go(-1)`.  Returns a Promise. See the limitations at
-   * {@link Router.go}.
+   * `router.go(-1)`.
    */
-  back(): Promise<NavigationFailure | void | undefined>
+  back(): ReturnType<Router['go']>
   /**
    * Go forward in history if possible by calling `history.forward()`.
-   * Equivalent to `router.go(1)`. Returns a Promise. See the limitations at
-   * {@link Router.go}.
+   * Equivalent to `router.go(1)`.
    */
-  forward(): Promise<NavigationFailure | void | undefined>
+  forward(): ReturnType<Router['go']>
   /**
-   * Allows you to move forward or backward through the history. Returns a
-   * Promise that resolves when the navigation finishes. If it wasn't possible
-   * to go back, the promise never resolves or rejects
+   * Allows you to move forward or backward through the history. Calls
+   * `history.go()`.
    *
    * @param delta - The position in the history to which you want to move,
    * relative to the current page
    */
-  go(delta: number): Promise<NavigationFailure | void | undefined>
+  go(delta: number): void
 
   /**
    * Add a navigation guard that executes before any navigation. Returns a
@@ -471,11 +477,11 @@ export function createRouter(options: RouterOptions): Router {
 
     let href = routerHistory.createHref(fullPath)
     if (__DEV__) {
-      if (href.startsWith('//'))
+      if (href.startsWith('//')) {
         warn(
           `Location "${rawLocation}" resolved to "${href}". A resolved location cannot start with multiple slashes.`
         )
-      else if (!matchedRoute.matched.length) {
+      } else if (!matchedRoute.matched.length) {
         warn(
           `No match found for location with path "${
             'path' in rawLocation ? rawLocation.path : rawLocation
@@ -1016,24 +1022,7 @@ export function createRouter(options: RouterOptions): Router {
       .catch(triggerError)
   }
 
-  function go(delta: number) {
-    return new Promise<NavigationFailure | void | undefined>(
-      (resolve, reject) => {
-        let removeError = errorHandlers.add(err => {
-          removeError()
-          removeAfterEach()
-          reject(err)
-        })
-        let removeAfterEach = afterGuards.add((_to, _from, failure) => {
-          removeError()
-          removeAfterEach()
-          resolve(failure)
-        })
-
-        routerHistory.go(delta)
-      }
-    )
-  }
+  const go = (delta: number) => routerHistory.go(delta)
 
   let started: boolean | undefined
   const installedApps = new Set<App>()

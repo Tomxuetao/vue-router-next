@@ -6,11 +6,9 @@ Most of Vue Router API has remained unchanged during its rewrite from v3 (for Vu
 
 Some of new features to keep an eye on in Vue Router 4 include:
 
-<!-- TODO: links -->
-
-- Dynamic Routing
+- [Dynamic Routing](/api/#addroute-2)
 - [Composition API](/guide/advanced/composition-api.md)
-- Custom History implementation
+<!-- - Custom History implementation -->
 
 ## Breaking Changes: Improvements
 
@@ -34,11 +32,11 @@ Pushing or resolving a named route without its required params will throw an err
 
 ```js
 // given the following route:
-const routes = [{ path: '/users/:id', name: 'users' }]
+const routes = [{ path: '/users/:id', name: 'user', component: UserDetails }]
 
 // Missing the `id` param will fail
-router.push({ name: 'users' })
-router.resolve({ name: 'users' })
+router.push({ name: 'user' })
+router.resolve({ name: 'user' })
 ```
 
 **Reason**: Same as above.
@@ -52,9 +50,10 @@ const routes = [
   {
     path: '/dashboard',
     name: 'dashboard-parent',
+    component: DashboardParent
     children: [
-      { path: '', name: 'dashboard' },
-      { path: 'settings', name: 'dashboard-settings' },
+      { path: '', name: 'dashboard', component: DashboardDefault },
+      { path: 'settings', name: 'dashboard-settings', component: DashboardSettings },
     ],
   },
 ]
@@ -72,30 +71,35 @@ This has an important side effect about children `redirect` records like these:
 const routes = [
   {
     path: '/parent',
+    component: Parent,
     children: [
       // this would now redirect to `/home` instead of `/parent/home`
       { path: '', redirect: 'home' },
-      { path: 'home' },
+      { path: 'home', component: Home },
     ],
   },
 ]
 ```
 
-Note this will work if `path` was `/parent/` as the relative location `home` to `/parent/` is indeed `/parent/home` but the relative location of `home` to `/parent` is `/home`. Learn more about relative links [in the cookbook](/cookbook/relative-links.md).
+Note this will work if `path` was `/parent/` as the relative location `home` to `/parent/` is indeed `/parent/home` but the relative location of `home` to `/parent` is `/home`.
 
-**Reason**: This is to make trailing slash behavior consistent: by default all routes allow a trailing slash. [It can be disabled](/cookbook/trailing-slashes.md).
+<!-- Learn more about relative links [in the cookbook](/cookbook/relative-links.md). -->
+
+**Reason**: This is to make trailing slash behavior consistent: by default all routes allow a trailing slash. It can be disabled by using the `strict` option and manually appending (or not) a slash to the routes.
+
+<!-- TODO: maybe a cookbook entry -->
 
 ### `$route` properties Encoding
 
 Decoded values are now consistent no matter where the navigation is initiated (older browsers will still produce unencoded `path` and `fullPath`). The initial navigation should yield the same results as in-app navigations.
 
-Given any [normalized route location](#TODO):
+Given any [normalized route location](/api/#routelocationnormalized):
 
 - Values in `path`, `fullPath` are not decoded anymore. They will appear as provided by the browser (modern browsers provide them encoded). e.g. directly writing on the address bar `https://example.com/hello world` will yield the encoded version: `https://example.com/hello%20world` and both `path` and `fullPath` will be `/hello%20world`.
-- `hash` is now decoded, that way it can be copied over: `router.push({ hash: $route.hash })`.
+- `hash` is now decoded, that way it can be copied over: `router.push({ hash: $route.hash })` and be used directly in [scrollBehavior](/api/#scrollbehavior)'s `el` option.
 - When using `push`, `resolve` and `replace` and providing a `string` location or a `path` property in an object, **it must be encoded**. On the other hand, `params`, `query` and `hash` must be provided in its unencoded version.
 
-**Reason**: This allows to easily copy existing properties of a location when calling `router.push()` and `router.resolve()`. Learn more about encoding [in the cookbook](/cookbook/encoding.md).
+**Reason**: This allows to easily copy existing properties of a location when calling `router.push()` and `router.resolve()`, make it consistent across browsers.
 
 ## Breaking Changes: API Changes
 
@@ -150,9 +154,9 @@ Catch all routes (`*`, `/*`) must now be defined using a parameter with a custom
 const routes = [
   // pathMatch is the name of the param, e.g., going to /not/found yields
   // { params: { pathMatch: ['not', 'found'] }}
-  { path: '/:pathMatch(.*)*', name: 'not-found' },
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFound },
   // if you omit the last `*`, the `/` character in params will be encoded when resolving or pushing
-  { path: '/:pathMatch(.*)', name: 'bad-not-found' },
+  { path: '/:pathMatch(.*)', name: 'bad-not-found', component: NotFound },
 ]
 // bad example:
 router.resolve({
@@ -190,7 +194,7 @@ try {
 
 ### Removal of `router.match` and changes to `router.resolve`
 
-Both `router.match`, and `router.resolve` have been merged together into `router.resolve` with a slightly different signature. [Refer to the API](#TODO) for more details.
+Both `router.match`, and `router.resolve` have been merged together into `router.resolve` with a slightly different signature. [Refer to the API](/api/#resolve) for more details.
 
 **Reason**: Uniting multiple methods that were use for the same purpose.
 
@@ -230,7 +234,7 @@ app.config.globalProperties.append = (path, pathToAppend) =>
 
 ### Removal of `event` and `tag` props in `<router-link>`
 
-Both `event`, and `tag` props have been removed from `<router-link>`. You can use the [`v-slot` API](#TODO) to fully customize `<router-link>`:
+Both `event`, and `tag` props have been removed from `<router-link>`. You can use the [`v-slot` API](/api/#router-link-s-v-slot) to fully customize `<router-link>`:
 
 ```html
 replace
@@ -259,7 +263,7 @@ router.isReady().then(() => app.mount('#app'))
 
 Otherwise there will be an initial transition as if you provided the `appear` prop to `transition` because the router displays its initial location (nothing) and then displays the first location.
 
-Note that **if you have navigation guards upon the initial navigation**, you might not want to block the app render until they are resolved unless you are doing Server Side Rendering.
+Note that **if you have navigation guards upon the initial navigation**, you might not want to block the app render until they are resolved unless you are doing Server Side Rendering. In this scenario, not waiting the router to be ready to mount the app would yield the same result as in Vue 2.
 
 ### `scrollBehavior` changes
 
@@ -283,6 +287,26 @@ The object returned in `scrollBehavior` is now similar to [`ScrollToOptions`](ht
 
 **Reason**: This is was a necessary change. See the [related RFC](https://github.com/vuejs/rfcs/blob/master/active-rfcs/0034-router-view-keep-alive-transitions.md).
 
+### Passing content to route components' `<slot>`
+
+Before you could directly pass a template to be rendered by a route components' `<slot>` by nesting it under a `<router-view>` component:
+
+```html
+<router-view>
+  <p>In Vue Router 3, I render inside the route component</p>
+</router-view>
+```
+
+Because of the introduction of the `v-slot` api for `<router-view>`, you must pass it to the `<component>` using the `v-slot` API:
+
+```html
+<router-view v-slot="{ Component }">
+  <component :is="Component">
+    <p>In Vue Router 3, I render inside the route component</p>
+  </component>
+</router-view>
+```
+
 ### Removal of `parent` from route locations
 
 The `parent` property has been removed from normalized route locations (`this.$route` and object returned by `router.resolve`). You can still access it via the `matched` array:
@@ -296,6 +320,43 @@ const parent = this.$route.matched[this.$route.matched.length - 2]
 ### Removal of `pathToRegexpOptions`
 
 The `pathToRegexpOptions` and `caseSensitive` properties of route records have been replaced with `sensitive` and `strict` options for `createRouter()`. They can now also be directly passed when creating the router with `createRouter()`. Any other option specific to `path-to-regexp` has been removed as `path-to-regexp` is no longer used to parse paths.
+
+### Usage of `history.state`
+
+Vue Router saves information on the `history.state`. If you have any code manually calling `history.pushState()`, you should likely avoid it or refactor it with a regular `router.push()` and a `history.replaceState()`:
+
+```js
+// replace
+history.pushState(myState, '', url)
+// with
+await router.push(url)
+history.replaceState({ ...history.state, ...myState }, '')
+```
+
+Similarly, if you were calling `history.replaceState()` without preserving the current state, you will need to pass the current `history.state`:
+
+```js
+// replace
+history.replaceState({}, '', url)
+// with
+history.replaceState(history.state, '', url)
+```
+
+**Reason**: We use the history state to save information about the navigation like the scroll position, previous location, etc.
+
+### `routes` option is required in `options`
+
+The property `routes` is now required in `options`.
+
+```js
+createRouter({ routes: [] })
+```
+
+**Reason**: The router is designed to be created with routes even though you can add them later on. You need at least one route in most scenarios and this is written once per app in general.
+
+### Navigation guards in mixins are ignored
+
+At the moment navigation guards in mixins are not supported. You can track its support at [vue-router#454](https://github.com/vuejs/vue-router-next/issues/454).
 
 ### TypeScript
 

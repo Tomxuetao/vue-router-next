@@ -32,7 +32,7 @@ interface StateEntry extends HistoryState {
 
 /**
  * Creates a normalized history location from a window.location object
- * @param location
+ * @param location -
  */
 function createCurrentLocation(
   base: string,
@@ -202,20 +202,23 @@ function useHistoryStateNavigation(base: string) {
     state: StateEntry,
     replace: boolean
   ): void {
+    // when the base has a `#`, only use that for the URL
+    const hashIndex = base.indexOf('#')
     const url =
-      createBaseLocation() +
-      // preserve any existing query when base has a hash
-      (base.indexOf('#') > -1 && location.search
-        ? location.pathname + location.search + '#'
-        : base) +
-      to
+      hashIndex > -1
+        ? base.slice(hashIndex) + to
+        : createBaseLocation() + base + to
     try {
       // BROWSER QUIRK
       // NOTE: Safari throws a SecurityError when calling this function 100 times in 30 seconds
       history[replace ? 'replaceState' : 'pushState'](state, '', url)
       historyState.value = state
     } catch (err) {
-      warn('Error with push/replace State', err)
+      if (__DEV__) {
+        warn('Error with push/replace State', err)
+      } else {
+        console.error(err)
+      }
       // Force the navigation, this also resets the call count
       location[replace ? 'replace' : 'assign'](url)
     }
@@ -243,18 +246,33 @@ function useHistoryStateNavigation(base: string) {
   function push(to: HistoryLocation, data?: HistoryState) {
     // Add to current entry the information of where we are going
     // as well as saving the current position
-    const currentState: StateEntry = assign({}, history.state, {
-      forward: to,
-      scroll: computeScrollPosition(),
-    })
+    const currentState = assign(
+      {},
+      // use current history state to gracefully handle a wrong call to
+      // history.replaceState
+      // https://github.com/vuejs/vue-router-next/issues/366
+      historyState.value,
+      history.state as Partial<StateEntry> | null,
+      {
+        forward: to,
+        scroll: computeScrollPosition(),
+      }
+    )
+
+    if (__DEV__ && !history.state) {
+      warn(
+        `history.state seems to have been manually replaced without preserving the necessary values. Make sure to preserve existing history state if you are manually calling history.replaceState:\n\n` +
+          `history.replaceState(history.state, '', url)\n\n` +
+          `You can find more information at https://next.router.vuejs.org/guide/migration/#usage-of-history-state.`
+      )
+    }
+
     changeLocation(currentState.current, currentState, true)
 
     const state: StateEntry = assign(
       {},
       buildState(currentLocation.value, to, null),
-      {
-        position: currentState.position + 1,
-      },
+      { position: currentState.position + 1 },
       data
     )
 
@@ -274,7 +292,7 @@ function useHistoryStateNavigation(base: string) {
 /**
  * Creates an HTML5 history. Most common history for single page applications.
  *
- * @param base
+ * @param base -
  */
 export function createWebHistory(base?: string): RouterHistory {
   base = normalizeBase(base)

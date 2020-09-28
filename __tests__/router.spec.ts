@@ -175,23 +175,6 @@ describe('Router', () => {
     })
   })
 
-  it('can await router.go', async () => {
-    const { router } = await newRouter()
-    await router.push('/foo')
-    let currentRoute = router.currentRoute.value
-    const [p1, r1] = fakePromise()
-    router.beforeEach(async (to, from, next) => {
-      await p1
-      next()
-    })
-    let p = router.go(-1)
-    expect(router.currentRoute.value).toBe(currentRoute)
-    r1()
-    // resolves to undefined as a working navigation
-    await expect(p).resolves.toBe(undefined)
-    expect(router.currentRoute.value).not.toBe(currentRoute)
-  })
-
   it('can pass replace option to push', async () => {
     const { router, history } = await newRouter()
     jest.spyOn(history, 'replace')
@@ -389,7 +372,7 @@ describe('Router', () => {
 
   describe('navigation cancelled', () => {
     async function checkNavigationCancelledOnPush(
-      target?: RouteLocationRaw | false | ((vm: any) => any)
+      target?: RouteLocationRaw | false
     ) {
       const [p1, r1] = fakePromise()
       const history = createMemoryHistory()
@@ -436,7 +419,7 @@ describe('Router', () => {
     })
 
     async function checkNavigationCancelledOnPopstate(
-      target?: RouteLocationRaw | false | ((vm: any) => void)
+      target?: RouteLocationRaw | false
     ) {
       const [p1, r1] = fakePromise()
       const [p2, r2] = fakePromise()

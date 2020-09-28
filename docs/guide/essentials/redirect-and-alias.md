@@ -25,16 +25,18 @@ const routes = [
       // the function receives the target route as the argument
       // we return a redirect path/location here.
       return { path: '/search', query: { q: to.params.searchText } }
-    }
+    },
   },
   {
-    path: '/search'
+    path: '/search',
     // ...
-  }
+  },
 ]
 ```
 
 Note that **[Navigation Guards](../advanced/navigation-guards.md) are not applied on the route that redirects, only on its target**. e.g. In the example below, adding a `beforeEnter` guard to the `/home` route would not have any effect.
+
+When writing a `redirect`, you can omit the `component` option because it is never directly reached so there is no component to render. The only exception are [nested routes](./nested-routes.md): if a route record has `children` and a `redirect` property, it should also have a `component` property.
 
 ### Relative redirecting
 
@@ -47,8 +49,8 @@ const routes = [
     redirect: to => {
       // the function receives the target route as the argument
       // return redirect path/location here.
-    }
-  }
+    },
+  },
 ]
 ```
 
@@ -70,14 +72,15 @@ An alias gives you the freedom to map a UI structure to an arbitrary URL, instea
 const routes = [
   {
     path: '/users',
+    component: UsersLayout,
     children: [
       // this will render the UserList for these 3 URLs
       // - /users
       // - /users/list
       // - /people
-      { path: '', component: UserList, alias: ['/people', 'list'] }
-    ]
-  }
+      { path: '', component: UserList, alias: ['/people', 'list'] },
+    ],
+  },
 ]
 ```
 
@@ -87,19 +90,16 @@ If your route has parameters, make sure to include them in any absolute alias:
 const routes = [
   {
     path: '/users/:id',
+    component: UsersByIdLayout,
     children: [
       // this will render the UserDetails for these 3 URLs
       // - /users/24
       // - /users/24/profile
       // - /24
-      { path: 'profile', component: UserDetails, alias: ['/:id', ''] }
-    ]
-  }
+      { path: 'profile', component: UserDetails, alias: ['/:id', ''] },
+    ],
+  },
 ]
 ```
 
-TODO: canonical links in cookbook https://support.google.com/webmasters/answer/139066?hl=en
-
-<!-- TODO: add the advanced usage here as well -->
-
-For advanced usage, check out the [example](https://github.com/vuejs/vue-router/blob/dev/examples/route-alias/app.js).
+**Note about SEO**: when using aliases, make sure to [define canonical links](https://support.google.com/webmasters/answer/139066?hl=en).

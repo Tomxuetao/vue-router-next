@@ -25,6 +25,11 @@ async function showUserModal(id: number) {
     params: { id: '' + id },
     state: { backgroundView },
   })
+  const newState = {
+    ...window.history.state,
+    backgroundView,
+  }
+  window.history.replaceState(newState, '')
 }
 
 function closeUserModal() {
@@ -64,20 +69,23 @@ const Home = defineComponent({
 
     const userId = computed(() => route.params.id)
 
-    watchEffect(() => {
-      const el = modal.value
-      if (!el) return
+    watchEffect(
+      () => {
+        const el = modal.value
+        if (!el) return
 
-      const show = historyState.value.backgroundView
-      console.log('show modal?', show)
-      if (show) {
-        if ('show' in el) el.show()
-        else el.setAttribute('open', '')
-      } else {
-        if ('close' in el) el.close()
-        else el.removeAttribute('open')
-      }
-    })
+        const show = historyState.value.backgroundView
+        console.log('show modal?', show)
+        if (show) {
+          if ('show' in el) el.show()
+          else el.setAttribute('open', '')
+        } else {
+          if ('close' in el) el.close()
+          else el.removeAttribute('open')
+        }
+      },
+      { flush: 'post' }
+    )
 
     return {
       modal,
@@ -141,6 +149,7 @@ router.beforeEach((to, from, next) => {
 const app = createApp({
   setup() {
     const route = useRoute()
+    const historyState = computed(() => route.fullPath && window.history.state)
     const routeWithModal = computed(() => {
       if (historyState.value.backgroundView) {
         return router.resolve(
@@ -150,7 +159,6 @@ const app = createApp({
         return route
       }
     })
-    const historyState = computed(() => route.fullPath && window.history.state)
 
     return { route, routeWithModal, historyState, ...toRefs(route) }
   },

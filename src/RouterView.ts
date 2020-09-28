@@ -87,7 +87,8 @@ export const RouterViewImpl = defineComponent({
             callback(instance)
           )
         }
-      }
+      },
+      { flush: 'post' }
     )
 
     return () => {
@@ -142,6 +143,9 @@ export const RouterViewImpl = defineComponent({
 
 // export the public type for h/tsx inference
 // also to avoid inline import() in generated d.ts files
+/**
+ * Component to display the current route the user is at.
+ */
 export const RouterView = (RouterViewImpl as any) as {
   new (): {
     $props: AllowedComponentProps &

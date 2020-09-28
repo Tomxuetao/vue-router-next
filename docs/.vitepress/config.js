@@ -1,4 +1,19 @@
-/** @type {import('vitepress').UserConfig} */
+/** @typedef {import('vitepress').UserConfig} UserConfig */
+
+/** @type {UserConfig['head']} */
+const head = []
+
+if (process.env.NODE_ENV === 'production') {
+  head.push([
+    'script',
+    {
+      src: 'https://unpkg.com/thesemetrics@latest',
+      async: '',
+    },
+  ])
+}
+
+/** @type {UserConfig} */
 const config = {
   lang: 'en-US',
   title: 'Vue Router',
@@ -15,6 +30,7 @@ const config = {
       description: 'El router oficial par Vue.js',
     },
   },
+  head,
   // serviceWorker: true,
   themeConfig: {
     // algolia: {
@@ -27,6 +43,12 @@ const config = {
     docsDir: 'docs',
     docsBranch: 'master',
     editLinks: true,
+
+    carbonAds: {
+      carbon: 'CEBICK3I',
+      custom: 'CEBICK3M',
+      placement: 'routervuejsorg',
+    },
 
     locales: {
       // English
@@ -48,44 +70,57 @@ const config = {
         ],
 
         sidebar: [
-          { link: '/', text: 'Introduction' },
-          { link: '/installation', text: 'Installation' },
+          {
+            text: 'Introduction',
+            link: '/',
+          },
+          {
+            text: 'Installation',
+            link: '/installation',
+          },
           {
             text: 'Essentials',
             collapsable: false,
             children: [
-              { link: '/guide/', text: 'Getting Started' },
               {
-                link: '/guide/essentials/dynamic-matching',
+                text: 'Getting Started',
+                link: '/guide/',
+              },
+              {
                 text: 'Dynamic Route Matching',
+                link: '/guide/essentials/dynamic-matching',
               },
               {
-                link: '/guide/essentials/nested-routes',
+                text: "Routes' Matching Syntax",
+                link: '/guide/essentials/route-matching-syntax',
+              },
+              {
                 text: 'Nested Routes',
+                link: '/guide/essentials/nested-routes',
               },
               {
-                link: '/guide/essentials/navigation',
                 text: 'Programmatic Navigation',
+                link: '/guide/essentials/navigation',
               },
               {
-                link: '/guide/essentials/named-routes',
                 text: 'Named Routes',
+                link: '/guide/essentials/named-routes',
               },
               {
-                link: '/guide/essentials/named-views',
                 text: 'Named Views',
+                link: '/guide/essentials/named-views',
               },
               {
-                link: '/guide/essentials/redirect-and-alias',
                 text: 'Redirect and Alias',
+                link: '/guide/essentials/redirect-and-alias',
               },
               {
-                link: '/guide/essentials/passing-props',
                 text: 'Passing Props to Route Components',
+                link: '/guide/essentials/passing-props',
               },
               {
-                link: '/guide/essentials/history-mode',
                 text: 'Different History modes',
+                link: '/guide/essentials/history-mode',
               },
             ],
           },
@@ -94,37 +129,40 @@ const config = {
             collapsable: false,
             children: [
               {
-                link: '/guide/advanced/navigation-guards',
                 text: 'Navigation guards',
+                link: '/guide/advanced/navigation-guards',
               },
-              { link: '/guide/advanced/meta', text: 'Route Meta Fields' },
               {
-                link: '/guide/advanced/data-fetching',
+                text: 'Route Meta Fields',
+                link: '/guide/advanced/meta',
+              },
+              {
                 text: 'Data Fetching',
+                link: '/guide/advanced/data-fetching',
               },
               {
-                link: '/guide/advanced/composition-api',
                 text: 'Composition API',
+                link: '/guide/advanced/composition-api',
               },
               {
-                link: '/guide/advanced/transitions',
                 text: 'Transitions',
+                link: '/guide/advanced/transitions',
               },
               {
-                link: '/guide/advanced/scroll-behavior',
                 text: 'Scroll Behavior',
+                link: '/guide/advanced/scroll-behavior',
               },
               {
-                link: '/guide/advanced/lazy-loading',
                 text: 'Lazy Loading Routes',
+                link: '/guide/advanced/lazy-loading',
               },
               {
-                link: '/guide/advanced/extending-router-link',
                 text: 'Extending RouterLink',
+                link: '/guide/advanced/extending-router-link',
               },
               {
-                link: '/guide/advanced/navigation-failures',
                 text: 'Navigation Failures',
+                link: '/guide/advanced/navigation-failures',
               },
             ],
           },
