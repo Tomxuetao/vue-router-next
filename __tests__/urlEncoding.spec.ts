@@ -65,14 +65,16 @@ describe('URL Encoding', () => {
   it('calls decode with a path', async () => {
     const router = createRouter()
     await router.push('/p/foo')
-    expect(encoding.decode).toHaveBeenCalledTimes(1)
+    // one extra time for hash
+    expect(encoding.decode).toHaveBeenCalledTimes(2)
     expect(encoding.decode).toHaveBeenNthCalledWith(1, 'foo')
   })
 
   it('calls decode with a path with repeatable params', async () => {
     const router = createRouter()
     await router.push('/p/foo/bar')
-    expect(encoding.decode).toHaveBeenCalledTimes(2)
+    // one extra time for hash
+    expect(encoding.decode).toHaveBeenCalledTimes(3)
     expect(encoding.decode).toHaveBeenNthCalledWith(1, 'foo', 0, ['foo', 'bar'])
     expect(encoding.decode).toHaveBeenNthCalledWith(2, 'bar', 1, ['foo', 'bar'])
   })
@@ -94,15 +96,17 @@ describe('URL Encoding', () => {
   it('calls encodeQueryProperty with query', async () => {
     const router = createRouter()
     await router.push({ name: 'home', query: { p: 'foo' } })
-    expect(encoding.encodeQueryProperty).toHaveBeenCalledTimes(2)
-    expect(encoding.encodeQueryProperty).toHaveBeenNthCalledWith(1, 'p')
-    expect(encoding.encodeQueryProperty).toHaveBeenNthCalledWith(2, 'foo')
+    expect(encoding.encodeQueryValue).toHaveBeenCalledTimes(1)
+    expect(encoding.encodeQueryKey).toHaveBeenCalledTimes(1)
+    expect(encoding.encodeQueryKey).toHaveBeenNthCalledWith(1, 'p')
+    expect(encoding.encodeQueryValue).toHaveBeenNthCalledWith(1, 'foo')
   })
 
   it('calls decode with query', async () => {
     const router = createRouter()
     await router.push('/?p=foo')
-    expect(encoding.decode).toHaveBeenCalledTimes(2)
+    // one extra time for hash
+    expect(encoding.decode).toHaveBeenCalledTimes(3)
     expect(encoding.decode).toHaveBeenNthCalledWith(1, 'p')
     expect(encoding.decode).toHaveBeenNthCalledWith(2, 'foo')
   })
@@ -110,22 +114,50 @@ describe('URL Encoding', () => {
   it('calls encodeQueryProperty with arrays in query', async () => {
     const router = createRouter()
     await router.push({ name: 'home', query: { p: ['foo', 'bar'] } })
-    expect(encoding.encodeQueryProperty).toHaveBeenCalledTimes(3)
-    expect(encoding.encodeQueryProperty).toHaveBeenNthCalledWith(1, 'p')
-    expect(encoding.encodeQueryProperty).toHaveBeenNthCalledWith(2, 'foo')
-    expect(encoding.encodeQueryProperty).toHaveBeenNthCalledWith(3, 'bar')
+    expect(encoding.encodeQueryValue).toHaveBeenCalledTimes(2)
+    expect(encoding.encodeQueryKey).toHaveBeenCalledTimes(1)
+    expect(encoding.encodeQueryKey).toHaveBeenNthCalledWith(1, 'p')
+    expect(encoding.encodeQueryValue).toHaveBeenNthCalledWith(1, 'foo')
+    expect(encoding.encodeQueryValue).toHaveBeenNthCalledWith(2, 'bar')
   })
 
   it('keeps decoded values in query', async () => {
     // @ts-ignore: override to make the difference
     encoding.decode = () => 'd'
     // @ts-ignore
-    encoding.encodeQueryProperty = () => 'e'
+    encoding.encodeQueryValue = () => 'ev'
+    // @ts-ignore
+    encoding.encodeQueryKey = () => 'ek'
     const router = createRouter()
     await router.push({ name: 'home', query: { p: '%' } })
     expect(router.currentRoute.value).toMatchObject({
-      fullPath: '/?e=e',
+      fullPath: '/?ek=ev',
       query: { p: '%' },
+    })
+  })
+
+  it('keeps decoded values in hash', async () => {
+    // @ts-ignore: override to make the difference
+    encoding.decode = () => 'd'
+    // @ts-ignore
+    encoding.encodeHash = () => '#e'
+    const router = createRouter()
+    await router.push({ name: 'home', hash: '#%' })
+    expect(router.currentRoute.value).toMatchObject({
+      fullPath: '/#e',
+      hash: '#%',
+    })
+  })
+  it('decodes hash', async () => {
+    // @ts-ignore: override to make the difference
+    encoding.decode = () => '#d'
+    // @ts-ignore
+    encoding.encodeHash = () => '#e'
+    const router = createRouter()
+    await router.push('#%20')
+    expect(router.currentRoute.value).toMatchObject({
+      fullPath: '/#%20',
+      hash: '#d',
     })
   })
 })
