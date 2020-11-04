@@ -137,7 +137,7 @@ The object returned in `scrollBehavior` is now similar to [`ScrollToOptions`](ht
 </router-view>
 ```
 
-**Reason**: This is was a necessary change. See the [related RFC](https://github.com/vuejs/rfcs/blob/master/active-rfcs/0034-router-view-keep-alive-transitions.md).
+**Reason**: This was a necessary change. See the [related RFC](https://github.com/vuejs/rfcs/blob/master/active-rfcs/0034-router-view-keep-alive-transitions.md).
 
 ### Removal of `append` prop in `<router-link>`
 
@@ -178,9 +178,14 @@ with
 
 ### Removal of the `exact` prop in `<router-link>`
 
-The `exact` prop has been removed because the caveat it was fixing is no longer present. See the [RFC about active matching](https://github.com/vuejs/rfcs/blob/master/active-rfcs/0028-router-active-link.md) changes for more details.
+The `exact` prop has been removed because the caveat it was fixing is no longer present so you should be able to safely remove it. There are however two things you should be aware of:
 
-**Reason**: As Promises become available in all major browsers, we try to natively integrate them in Vue Router's API.
+- Routes are now active based on the route records they represent instead of the generated route location objects and their `path`, `query`, and `hash` properties
+- Only the `path` section is matched, `query`, and `hash` aren't taken into account anymore
+
+If you wish to customize this behavior, e.g. take into account the `hash` section, you should use the [`v-slot` API](https://next.router.vuejs.org/api/#router-link-s-v-slot) to extend `<router-link>`.
+
+**Reason**: See the [RFC about active matching](https://github.com/vuejs/rfcs/blob/master/active-rfcs/0028-router-active-link.md#summary) changes for more details.
 
 ### Navigation guards in mixins are ignored
 
@@ -251,6 +256,18 @@ const parent = this.$route.matched[this.$route.matched.length - 2]
 ### Removal of `pathToRegexpOptions`
 
 The `pathToRegexpOptions` and `caseSensitive` properties of route records have been replaced with `sensitive` and `strict` options for `createRouter()`. They can now also be directly passed when creating the router with `createRouter()`. Any other option specific to `path-to-regexp` has been removed as `path-to-regexp` is no longer used to parse paths.
+
+### Removal of unnamed parameters
+
+Due to the removal of `path-to-regexp`, unnamed parameters are no longer supported:
+
+- `/foo(/foo)?/suffix` becomes `/foo/:_(foo)?/suffix`
+- `/foo(foo)?` becomes `/foo:_(foo)?`
+- `/foo/(.*)` becomes `/foo/:_(.*)`
+
+:::tip
+Note you can use any name instead of `_` for the param. The point is to provide one.
+:::
 
 ### Usage of `history.state`
 
