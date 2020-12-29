@@ -370,7 +370,7 @@ export declare function useRoute(): RouteLocationNormalized
 
 ### useRouter
 
-Returns the [router](#Router) instance. Equivalent to using `$router` inside templates. Must be called inside of `setup()`.
+Returns the [router](#router-properties) instance. Equivalent to using `$router` inside templates. Must be called inside of `setup()`.
 
 **Signature:**
 
@@ -924,7 +924,7 @@ A raw location can either be a `string` like `/users/posva#bio` or an object:
 
 ```js
 // these three forms are equivalent
-router.push('/users/posva#bio)
+router.push('/users/posva#bio')
 router.push({ path: '/users/posva', hash: '#bio' })
 router.push({ name: 'users', params: { username: 'posva' }, hash: '#bio' })
 // only change the hash

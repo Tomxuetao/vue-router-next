@@ -12,6 +12,7 @@ import {
   AllowedComponentProps,
   ComponentCustomProps,
   watch,
+  Slot,
 } from 'vue'
 import {
   RouteLocationNormalized,
@@ -21,7 +22,7 @@ import {
 import {
   matchedRouteKey,
   viewDepthKey,
-  routeLocationKey,
+  routerViewLocationKey,
 } from './injectionSymbols'
 import { assign } from './utils'
 import { warn } from './warning'
@@ -35,6 +36,8 @@ export interface RouterViewProps {
 
 export const RouterViewImpl = /*#__PURE__*/ defineComponent({
   name: 'RouterView',
+  // #674 we manually inherit them
+  inheritAttrs: false,
   props: {
     name: {
       type: String as PropType<string>,
@@ -46,14 +49,16 @@ export const RouterViewImpl = /*#__PURE__*/ defineComponent({
   setup(props, { attrs, slots }) {
     __DEV__ && warnDeprecatedUsage()
 
-    const injectedRoute = inject(routeLocationKey)!
+    const injectedRoute = inject(routerViewLocationKey)!
+    const routeToDisplay = computed(() => props.route || injectedRoute.value)
     const depth = inject(viewDepthKey, 0)
     const matchedRouteRef = computed<RouteLocationMatched | undefined>(
-      () => (props.route || injectedRoute).matched[depth]
+      () => routeToDisplay.value.matched[depth]
     )
 
     provide(viewDepthKey, depth + 1)
     provide(matchedRouteKey, matchedRouteRef)
+    provide(routerViewLocationKey, routeToDisplay)
 
     const viewRef = ref<ComponentPublicInstance>()
 
@@ -69,7 +74,7 @@ export const RouterViewImpl = /*#__PURE__*/ defineComponent({
           to.instances[name] = instance
           // the component instance is reused for a different route or name so
           // we copy any saved update or leave guards
-          if (from && instance === oldInstance) {
+          if (from && from !== to && instance && instance === oldInstance) {
             to.leaveGuards = from.leaveGuards
             to.updateGuards = from.updateGuards
           }
@@ -92,7 +97,7 @@ export const RouterViewImpl = /*#__PURE__*/ defineComponent({
     )
 
     return () => {
-      const route = props.route || injectedRoute
+      const route = routeToDisplay.value
       const matchedRoute = matchedRouteRef.value
       const ViewComponent = matchedRoute && matchedRoute.components[props.name]
       // we need the value at the time we render because when we unmount, we
@@ -100,9 +105,7 @@ export const RouterViewImpl = /*#__PURE__*/ defineComponent({
       const currentName = props.name
 
       if (!ViewComponent) {
-        return slots.default
-          ? slots.default({ Component: ViewComponent, route })
-          : null
+        return normalizeSlot(slots.default, { Component: ViewComponent, route })
       }
 
       // props from route configuration
@@ -133,13 +136,18 @@ export const RouterViewImpl = /*#__PURE__*/ defineComponent({
       return (
         // pass the vnode to the slot as a prop.
         // h and <component :is="..."> both accept vnodes
-        slots.default
-          ? slots.default({ Component: component, route })
-          : component
+        normalizeSlot(slots.default, { Component: component, route }) ||
+        component
       )
     }
   },
 })
+
+function normalizeSlot(slot: Slot | undefined, data: any) {
+  if (!slot) return null
+  const slotContent = slot(data)
+  return slotContent.length === 1 ? slotContent[0] : slotContent
+}
 
 // export the public type for h/tsx inference
 // also to avoid inline import() in generated d.ts files

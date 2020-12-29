@@ -1,7 +1,7 @@
 /** @typedef {import('vitepress').UserConfig} UserConfig */
 
 /** @type {UserConfig['head']} */
-const head = []
+const head = [['link', { rel: 'icon', href: `/logo.png` }]]
 
 if (process.env.NODE_ENV === 'production') {
   head.push([
@@ -24,20 +24,15 @@ const config = {
       title: 'Vue Router',
       description: 'The official router for Vue.js.',
     },
-    '/es/': {
-      lang: 'es-ES',
-      title: 'Vue Router',
-      description: 'El router oficial par Vue.js',
-    },
+    // '/es/': {
+    //   lang: 'es-ES',
+    //   title: 'Vue Router',
+    //   description: 'El router oficial par Vue.js',
+    // },
   },
   head,
   // serviceWorker: true,
   themeConfig: {
-    // algolia: {
-    //   apiKey: 'f854bb46d3de7eeb921a3b9173bd0d4c',
-    //   indexName: 'vue-router-next',
-    // },
-
     repo: 'vuejs/vue-router-next',
     docsRepo: 'vuejs/vue-router-next',
     docsDir: 'docs',
@@ -184,23 +179,23 @@ const config = {
       },
     },
 
-    '/es/': {
-      nav: [
-        {
-          text: 'Guía',
-          link: '/guide/',
-        },
-        {
-          text: 'API',
-          link: '/api/',
-        },
-        {
-          text: 'Cambios',
-          link:
-            'https://github.com/vuejs/vue-router-next/blob/master/CHANGELOG.md',
-        },
-      ],
-    },
+    // '/es/': {
+    //   nav: [
+    //     {
+    //       text: 'Guía',
+    //       link: '/guide/',
+    //     },
+    //     {
+    //       text: 'API',
+    //       link: '/api/',
+    //     },
+    //     {
+    //       text: 'Cambios',
+    //       link:
+    //         'https://github.com/vuejs/vue-router-next/blob/master/CHANGELOG.md',
+    //     },
+    //   ],
+    // },
   },
 }
 

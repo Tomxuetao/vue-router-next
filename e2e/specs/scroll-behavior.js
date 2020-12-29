@@ -17,10 +17,8 @@ module.exports = {
 
       .execute(function () {
         window.scrollTo(0, 100)
-        // works in Safari
-        document.querySelector('li:nth-child(2) a').click()
       })
-      // .click('li:nth-child(2) a')
+      .click('li:nth-child(2) a')
       .waitForElementPresent('.view.foo', TIMEOUT)
       .assert.containsText('.view', 'foo')
       .execute(function () {
@@ -64,11 +62,7 @@ module.exports = {
         null,
         'restore scroll position on back again'
       )
-
-      .execute(function () {
-        // for Safari...
-        document.querySelector('li:nth-child(3) a').click()
-      })
+      .click('li:nth-child(3) a')
       .waitForElementPresent('.view.bar', TIMEOUT)
       .assert.evaluate(
         function () {

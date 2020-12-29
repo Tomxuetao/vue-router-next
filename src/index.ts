@@ -1,7 +1,7 @@
 export { createWebHistory } from './history/html5'
 export { createMemoryHistory } from './history/memory'
 export { createWebHashHistory } from './history/hash'
-export { createRouterMatcher } from './matcher'
+export { createRouterMatcher, RouterMatcher } from './matcher'
 
 export {
   LocationQuery,
@@ -9,9 +9,10 @@ export {
   stringifyQuery,
   LocationQueryRaw,
   LocationQueryValue,
+  LocationQueryValueRaw,
 } from './query'
 
-export { RouterHistory } from './history/common'
+export { RouterHistory, HistoryState } from './history/common'
 
 export { RouteRecord, RouteRecordNormalized } from './matcher/types'
 
@@ -20,30 +21,47 @@ export {
   _PathParserOptions,
 } from './matcher/pathParserRanker'
 
-export { routeLocationKey, routerKey } from './injectionSymbols'
+export {
+  routeLocationKey,
+  routerViewLocationKey,
+  routerKey,
+  matchedRouteKey,
+  viewDepthKey,
+} from './injectionSymbols'
 
 export {
-  RouteMeta,
+  // route location
   _RouteLocationBase,
-  _RouteRecordBase,
+  LocationAsPath,
+  LocationAsRelativeRaw,
+  RouteQueryAndHash,
   RouteLocationRaw,
   RouteLocation,
   RouteLocationNormalized,
   RouteLocationNormalizedLoaded,
-  START_LOCATION_NORMALIZED as START_LOCATION,
   RouteParams,
+  RouteParamValue,
   RouteLocationMatched,
   RouteLocationOptions,
+  RouteRecordRedirectOption,
+  // route records
+  _RouteRecordBase,
+  RouteMeta,
+  START_LOCATION_NORMALIZED as START_LOCATION,
+  RouteComponent,
+  // RawRouteComponent,
+  RouteRecordName,
   RouteRecordRaw,
   NavigationGuard,
   NavigationGuardNext,
+  NavigationGuardWithThis,
   NavigationHookAfter,
 } from './types'
+
 export {
   createRouter,
   Router,
   RouterOptions,
-  ErrorHandler,
   RouterScrollBehavior,
 } from './router'
 
@@ -54,7 +72,12 @@ export {
 } from './errors'
 
 export { onBeforeRouteLeave, onBeforeRouteUpdate } from './navigationGuards'
-export { RouterLink, useLink, RouterLinkProps } from './RouterLink'
+export {
+  RouterLink,
+  useLink,
+  RouterLinkProps,
+  UseLinkOptions,
+} from './RouterLink'
 export { RouterView, RouterViewProps } from './RouterView'
 
 export * from './useApi'

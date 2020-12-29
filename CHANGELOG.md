@@ -1,3 +1,54 @@
+## [4.0.2](https://github.com/vuejs/vue-router-next/compare/v4.0.1...v4.0.2) (2020-12-27)
+
+### Bug Fixes
+
+- **matcher:** clear customRe after consuming buffer ([#680](https://github.com/vuejs/vue-router-next/issues/680)) ([4c0b825](https://github.com/vuejs/vue-router-next/commit/4c0b82507e1f949d55daffd06756615cd704e090)), closes [#679](https://github.com/vuejs/vue-router-next/issues/679)
+- **router:** allow replace to have query and hash ([6a8ccb6](https://github.com/vuejs/vue-router-next/commit/6a8ccb6e3b80aef00dda7e73be2afb433d871a32)), closes [#668](https://github.com/vuejs/vue-router-next/issues/668)
+- **router:** do not restore history when ... ([db267be](https://github.com/vuejs/vue-router-next/commit/db267be72bace7c99a0c65669ab04ce770e1532c)), closes [#662](https://github.com/vuejs/vue-router-next/issues/662)
+- **router-view:** disable inheritAttrs ([1e58574](https://github.com/vuejs/vue-router-next/commit/1e58574e6175f591f7fb24bcfc6e11045e7b0148)), closes [#674](https://github.com/vuejs/vue-router-next/issues/674)
+- **types:** add missing exported types ([034c71c](https://github.com/vuejs/vue-router-next/commit/034c71c72ca46d242daf53ae54ab67e6f7800f91))
+- spread operator compatible ([a2f3e91](https://github.com/vuejs/vue-router-next/commit/a2f3e91cb3e3ae61118d803ce938d6f4eea76116))
+
+## [4.0.1](https://github.com/vuejs/vue-router-next/compare/v4.0.0...v4.0.1) (2020-12-07)
+
+### Bug Fixes
+
+- **build:** rollback rollup plugin commonjs ([9486950](https://github.com/vuejs/vue-router-next/commit/9486950f3399bda34ab2840b83fd123ac5ce7ce9))
+
+# [4.0.0](https://github.com/vuejs/vue-router-next/compare/v4.0.0-rc.6...v4.0.0) (2020-12-07)
+
+### Bug Fixes
+
+- **router-view:** properly use route prop when nested ([b74051a](https://github.com/vuejs/vue-router-next/commit/b74051a6bde7524d1a7cc6cc1daacb213987faa0))
+- **router-view:** return one node when possible ([d18e500](https://github.com/vuejs/vue-router-next/commit/d18e500da2ed017be30871628a5cc59324bec15c)), closes [#537](https://github.com/vuejs/vue-router-next/issues/537)
+
+### Features
+
+- expose routerViewLocationKey as internal ([f498646](https://github.com/vuejs/vue-router-next/commit/f498646c3bc2ad480be7a3d0f11aa11710729911))
+
+# [4.0.0-rc.6](https://github.com/vuejs/vue-router-next/compare/v4.0.0-rc.5...v4.0.0-rc.6) (2020-11-30)
+
+### Bug Fixes
+
+- **guards:** correctly reuse guards ([#616](https://github.com/vuejs/vue-router-next/issues/616)) ([95d44c8](https://github.com/vuejs/vue-router-next/commit/95d44c8ff2a961e052fd67b2160b87fb32d0ffb4)), closes [#614](https://github.com/vuejs/vue-router-next/issues/614)
+
+### Features
+
+- **devtools:** improve active + match in routes inspector ([9f59489](https://github.com/vuejs/vue-router-next/commit/9f59489f04cedfca5ba55da019b2dc790e926fd7))
+- **types:** expose `LocationQueryValueRaw` as internal ([dc02850](https://github.com/vuejs/vue-router-next/commit/dc028500c3e931ed5fd6beedf58b5425f5115b52))
+
+# [4.0.0-rc.5](https://github.com/vuejs/vue-router-next/compare/v4.0.0-rc.4...v4.0.0-rc.5) (2020-11-21)
+
+### Features
+
+- **scroll:** allow modifying scrollBehavior in options ([#602](https://github.com/vuejs/vue-router-next/issues/602)) ([d6651f5](https://github.com/vuejs/vue-router-next/commit/d6651f5f954c8ecaf1a77ec209d5aba06343e867))
+
+# [4.0.0-rc.4](https://github.com/vuejs/vue-router-next/compare/v4.0.0-rc.3...v4.0.0-rc.4) (2020-11-20)
+
+### Features
+
+- expose symbols as internals ([ef62d96](https://github.com/vuejs/vue-router-next/commit/ef62d9645c456f069699480ae3f2c3dd97b9d30d))
+
 # [4.0.0-rc.3](https://github.com/vuejs/vue-router-next/compare/v4.0.0-rc.2...v4.0.0-rc.3) (2020-11-14)
 
 ### Bug Fixes

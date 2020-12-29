@@ -6,7 +6,7 @@
     <template #page-top>
       <CarbonAds
         v-if="$site.themeConfig.carbonAds"
-        :key="'carbon' + $page.path"
+        :key="'carbon' + $page.relativePath"
         :code="$site.themeConfig.carbonAds.carbon"
         :placement="$site.themeConfig.carbonAds.placement"
       />
@@ -14,7 +14,7 @@
     <template #page-bottom>
       <BuySellAds
         v-if="$site.themeConfig.carbonAds"
-        :key="'custom' + $page.path"
+        :key="'custom' + $page.relativePath"
         :code="$site.themeConfig.carbonAds.custom"
         :placement="$site.themeConfig.carbonAds.placement"
       />
@@ -43,5 +43,9 @@ export default {
 <style>
 form {
   margin-block-end: 0;
+}
+
+.custom-blocks {
+  overflow-x: auto;
 }
 </style>

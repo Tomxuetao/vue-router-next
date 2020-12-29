@@ -18,6 +18,11 @@ import {
 import { warn } from '../warning'
 import { assign, noop } from '../utils'
 
+/**
+ * Internal RouterMatcher
+ *
+ * @internal
+ */
 export interface RouterMatcher {
   addRoute: (record: RouteRecordRaw, parent?: RouteRecordMatcher) => () => void
   removeRoute: {
@@ -161,6 +166,11 @@ export function createRouterMatcher(
       // if there was no original record, then the first one was not an alias and all
       // other alias (if any) need to reference this record when adding children
       originalRecord = originalRecord || matcher
+
+      // TODO: add normalized records for more flexibility
+      // if (parent && isAliasRecord(originalRecord)) {
+      //   parent.children.push(originalRecord)
+      // }
 
       insertMatcher(matcher)
     }
@@ -337,8 +347,8 @@ export function normalizeRouteRecord(
     props: normalizeRecordProps(record),
     children: record.children || [],
     instances: {},
-    leaveGuards: [],
-    updateGuards: [],
+    leaveGuards: new Set(),
+    updateGuards: new Set(),
     enterCallbacks: {},
     components:
       'components' in record

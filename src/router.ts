@@ -56,14 +56,18 @@ import { extractComponentsGuards, guardToPromiseFn } from './navigationGuards'
 import { warn } from './warning'
 import { RouterLink } from './RouterLink'
 import { RouterView } from './RouterView'
-import { routerKey, routeLocationKey } from './injectionSymbols'
+import {
+  routeLocationKey,
+  routerKey,
+  routerViewLocationKey,
+} from './injectionSymbols'
 import { addDevtools } from './devtools'
 
 /**
  * Internal type to define an ErrorHandler
  * @internal
  */
-export type ErrorHandler = (error: any) => any
+export type _ErrorHandler = (error: any) => any
 // resolve, reject arguments of Promise constructor
 type OnReadyCallback = [() => void, (reason?: any) => void]
 
@@ -300,7 +304,7 @@ export interface Router {
    *
    * @param handler - error handler to register
    */
-  onError(handler: ErrorHandler): () => void
+  onError(handler: _ErrorHandler): () => void
   /**
    * Returns a Promise that resolves when the router has completed the initial
    * navigation, which means it has resolved all async enter hooks and async
@@ -333,7 +337,6 @@ export function createRouter(options: RouterOptions): Router {
   const matcher = createRouterMatcher(options.routes, options)
   let parseQuery = options.parseQuery || originalParseQuery
   let stringifyQuery = options.stringifyQuery || originalStringifyQuery
-  let { scrollBehavior } = options
   let routerHistory = options.history
 
   const beforeGuards = useCallbacks<NavigationGuardWithThis<undefined>>()
@@ -345,7 +348,7 @@ export function createRouter(options: RouterOptions): Router {
   let pendingLocation: RouteLocation = START_LOCATION_NORMALIZED
 
   // leave the scrollRestoration if no scrollBehavior is provided
-  if (isBrowser && scrollBehavior && 'scrollRestoration' in history) {
+  if (isBrowser && options.scrollBehavior && 'scrollRestoration' in history) {
     history.scrollRestoration = 'manual'
   }
 
@@ -519,7 +522,9 @@ export function createRouter(options: RouterOptions): Router {
   function locationAsObject(
     to: RouteLocationRaw | RouteLocationNormalized
   ): Exclude<RouteLocationRaw, string> | RouteLocationNormalized {
-    return typeof to === 'string' ? { path: to } : assign({}, to)
+    return typeof to === 'string'
+      ? parseURL(parseQuery, to, currentRoute.value.path)
+      : assign({}, to)
   }
 
   function checkCanceledNavigation(
@@ -549,10 +554,16 @@ export function createRouter(options: RouterOptions): Router {
     const lastMatched = to.matched[to.matched.length - 1]
     if (lastMatched && lastMatched.redirect) {
       const { redirect } = lastMatched
-      // transform it into an object to pass the original RouteLocaleOptions
-      let newTargetLocation = locationAsObject(
+      let newTargetLocation =
         typeof redirect === 'function' ? redirect(to) : redirect
-      )
+
+      if (typeof newTargetLocation === 'string') {
+        newTargetLocation =
+          newTargetLocation.indexOf('?') > -1 ||
+          newTargetLocation.indexOf('#') > -1
+            ? (newTargetLocation = locationAsObject(newTargetLocation))
+            : { path: newTargetLocation }
+      }
 
       if (
         __DEV__ &&
@@ -597,7 +608,11 @@ export function createRouter(options: RouterOptions): Router {
 
     if (shouldRedirect)
       return pushWithRedirect(
-        assign(shouldRedirect, { state: data, force, replace }),
+        assign(locationAsObject(shouldRedirect), {
+          state: data,
+          force,
+          replace,
+        }),
         // keep original redirectedFrom if it exists
         redirectedFrom || targetLocation
       )
@@ -729,9 +744,9 @@ export function createRouter(options: RouterOptions): Router {
 
     // leavingRecords is already reversed
     for (const record of leavingRecords) {
-      for (const guard of record.leaveGuards) {
+      record.leaveGuards.forEach(guard => {
         guards.push(guardToPromiseFn(guard, to, from))
-      }
+      })
     }
 
     const canceledNavigationCheck = checkCanceledNavigationAndReject.bind(
@@ -765,9 +780,9 @@ export function createRouter(options: RouterOptions): Router {
           )
 
           for (const record of updatingRecords) {
-            for (const guard of record.updateGuards) {
+            record.updateGuards.forEach(guard => {
               guards.push(guardToPromiseFn(guard, to, from))
-            }
+            })
           }
           guards.push(canceledNavigationCheck)
 
@@ -928,8 +943,14 @@ export function createRouter(options: RouterOptions): Router {
           if (
             isNavigationFailure(error, ErrorTypes.NAVIGATION_GUARD_REDIRECT)
           ) {
-            // do not restore history on unknown direction
-            if (info.delta) routerHistory.go(-info.delta, false)
+            // Here we could call if (info.delta) routerHistory.go(-info.delta,
+            // false) but this is bug prone as we have no way to wait the
+            // navigation to be finished before calling pushWithRedirect. Using
+            // a setTimeout of 16ms seems to work but there is not guarantee for
+            // it to work on every browser. So Instead we do not restore the
+            // history entry and trigger a new navigation as requested by the
+            // navigation guard.
+
             // the error is already handled by router.push we just want to avoid
             // logging the error
             pushWithRedirect(
@@ -972,7 +993,7 @@ export function createRouter(options: RouterOptions): Router {
   // Initialization and Errors
 
   let readyHandlers = useCallbacks<OnReadyCallback>()
-  let errorHandlers = useCallbacks<ErrorHandler>()
+  let errorHandlers = useCallbacks<_ErrorHandler>()
   let ready: boolean
 
   /**
@@ -1016,6 +1037,7 @@ export function createRouter(options: RouterOptions): Router {
     isPush: boolean,
     isFirstNavigation: boolean
   ): Promise<any> {
+    const { scrollBehavior } = options
     if (!isBrowser || !scrollBehavior) return Promise.resolve()
 
     let scrollPosition: _ScrollPositionNormalized | null =
@@ -1098,6 +1120,7 @@ export function createRouter(options: RouterOptions): Router {
 
       app.provide(routerKey, router)
       app.provide(routeLocationKey, reactive(reactiveRoute))
+      app.provide(routerViewLocationKey, currentRoute)
 
       let unmountApp = app.unmount
       installedApps.add(app)

@@ -41,50 +41,62 @@ const state = reactive({
   leave: 0,
 })
 
-const Foo = defineComponent({
-  template: `
-    <div>
-    foo
-    <p id="enterCbs">{{ enterCallback }}</p>
-    <p id="update">{{ selfUpdates }}</p>
-    <p id="leave">{{ selfLeaves }}</p>
+/**
+ * creates a component that logs the guards
+ * @param name
+ */
+function createTestComponent(key: string) {
+  return defineComponent({
+    name: key,
+    template: `
+    <div :id="key">
+    {{ key }}
+    <p class="enterCbs">{{ enterCallback }}</p>
+    <p class="update">{{ selfUpdates }}</p>
+    <p class="leave">{{ selfLeaves }}</p>
     </div>
   `,
-  data: () => ({ key: 'Foo', enterCallback: 0, selfUpdates: 0, selfLeaves: 0 }),
-  // mounted() {
-  //   console.log('mounted Foo')
-  // },
-  beforeRouteEnter(to, from, next) {
-    state.enter++
-    logs.value.push(`enter ${from.path} - ${to.path}`)
-    next(vm => {
-      // @ts-ignore
-      vm.enterCallback++
-    })
-  },
-  beforeRouteUpdate(to, from) {
-    if (!this || this.key !== 'Foo') throw new Error('no this')
-    state.update++
-    this.selfUpdates++
-    logs.value.push(`update ${from.path} - ${to.path}`)
-  },
-  beforeRouteLeave(to, from) {
-    if (!this || this.key !== 'Foo') throw new Error('no this')
-    state.leave++
-    this.selfLeaves++
-    logs.value.push(`leave ${from.path} - ${to.path}`)
-  },
+    data: () => ({ key, enterCallback: 0, selfUpdates: 0, selfLeaves: 0 }),
+    // mounted() {
+    //   console.log('mounted Foo')
+    // },
+    beforeRouteEnter(to, from, next) {
+      state.enter++
+      logs.value.push(`${key}: enter ${from.path} - ${to.path}`)
+      next(vm => {
+        // @ts-ignore
+        vm.enterCallback++
+      })
+    },
+    beforeRouteUpdate(to, from) {
+      if (!this || this.key !== key) throw new Error('no this')
+      state.update++
+      this.selfUpdates++
+      logs.value.push(`${key}: update ${from.path} - ${to.path}`)
+    },
+    beforeRouteLeave(to, from) {
+      if (!this || this.key !== key) throw new Error('no this')
+      state.leave++
+      this.selfLeaves++
+      logs.value.push(`${key}: leave ${from.path} - ${to.path}`)
+    },
 
-  setup() {
-    onBeforeRouteUpdate((to, from) => {
-      logs.value.push(`setup:update ${from.path} - ${to.path}`)
-    })
-    onBeforeRouteLeave((to, from) => {
-      logs.value.push(`setup:leave ${from.path} - ${to.path}`)
-    })
-    return {}
-  },
-})
+    setup() {
+      onBeforeRouteUpdate((to, from) => {
+        logs.value.push(`${key}: setup:update ${from.path} - ${to.path}`)
+      })
+      onBeforeRouteLeave((to, from) => {
+        logs.value.push(`${key}: setup:leave ${from.path} - ${to.path}`)
+      })
+      return {}
+    },
+  })
+}
+
+const Foo = createTestComponent('Foo')
+const One = createTestComponent('One')
+const Two = createTestComponent('Two')
+const Aux = createTestComponent('Aux')
 
 const webHistory = createWebHistory('/' + __dirname)
 const router = createRouter({
@@ -98,6 +110,20 @@ const router = createRouter({
     {
       path: '/f/:id',
       component: Foo,
+    },
+    {
+      path: '/named-one',
+      components: {
+        default: One,
+        aux: Aux,
+      },
+    },
+    {
+      path: '/named-two',
+      components: {
+        default: Two,
+        aux: Aux,
+      },
     },
   ],
 })
@@ -151,6 +177,9 @@ leaves: {{ state.leave }}
         <li><router-link to="/f/2?bar=foo">/f/2?bar=foo</router-link></li>
         <li><router-link to="/f/2?foo=key">/f/2?foo=key</router-link></li>
         <li><router-link to="/f/2?foo=key2">/f/2?foo=key2</router-link></li>
+        <li><router-link id="update-query" :to="{ query: { n: (Number($route.query.n) || 0) + 1 }}" v-slot="{ route }">{{ route.fullPath }}</router-link></li>
+        <li><router-link to="/named-one">/named-one</router-link></li>
+        <li><router-link to="/named-two">/named-two</router-link></li>
       </ul>
 
       <template v-if="testCase === 'keepalive'">
@@ -168,17 +197,18 @@ leaves: {{ state.leave }}
         </router-view>
       </template>
       <template v-else-if="testCase === 'keyed'">
-        <router-view :key="$route.query.foo" class="view" />
+        <router-view :key="$route.query.foo || undefined" class="view" />
       </template>
       <template v-else-if="testCase === 'keepalivekeyed'">
         <router-view v-slot="{ Component }" >
           <keep-alive>
-            <component :is="Component" :key="$route.query.foo" class="view" />
+            <component :is="Component" :key="$route.query.foo || undefined" class="view" />
           </keep-alive>
         </router-view>
       </template>
       <template v-else>
         <router-view class="view" />
+        <router-view class="aux-view" name="aux" />
       </template>
 
     </div>
@@ -202,5 +232,8 @@ leaves: {{ state.leave }}
 })
 
 app.use(router)
+
+// @ts-ignore
+window.r = router
 
 app.mount('#app')
