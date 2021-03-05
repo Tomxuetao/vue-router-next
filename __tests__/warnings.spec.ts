@@ -1,6 +1,11 @@
 import { mockWarn } from 'jest-mock-warn'
 import { createMemoryHistory, createRouter } from '../src'
-import { defineComponent, FunctionalComponent, h } from 'vue'
+import {
+  defineAsyncComponent,
+  defineComponent,
+  FunctionalComponent,
+  h,
+} from 'vue'
 
 let component = defineComponent({})
 
@@ -175,6 +180,45 @@ describe('warnings', () => {
 
     await expect(router.push({ path: '/foo' })).resolves.toBe(undefined)
     expect('"/foo" is a Promise instead of a function').toHaveBeenWarned()
+  })
+
+  it('warns if use defineAsyncComponent in routes', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      // simulates import('./component.vue')
+      routes: [
+        {
+          path: '/foo',
+          component: defineAsyncComponent(() => Promise.resolve({})),
+        },
+      ],
+    })
+    await router.push('/foo')
+    expect(`defined using "defineAsyncComponent()"`).toHaveBeenWarned()
+  })
+
+  it('warns if use defineAsyncComponent in routes only once per component', async () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      // simulates import('./component.vue')
+      routes: [
+        { path: '/', component },
+        {
+          path: '/foo',
+          component: defineAsyncComponent(() => Promise.resolve({})),
+        },
+        {
+          path: '/bar',
+          component: defineAsyncComponent(() => Promise.resolve({})),
+        },
+      ],
+    })
+    await router.push('/foo')
+    await router.push('/')
+    await router.push('/foo')
+    expect(`defined using "defineAsyncComponent()"`).toHaveBeenWarnedTimes(1)
+    await router.push('/bar')
+    expect(`defined using "defineAsyncComponent()"`).toHaveBeenWarnedTimes(2)
   })
 
   it('warns if no route matched', async () => {

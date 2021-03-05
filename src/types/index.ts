@@ -80,7 +80,9 @@ export interface RouteLocationOptions {
    */
   force?: boolean
   /**
-   * State to save using the History API. This cannot contain any reactive values and some primitives like Symbols are forbidden. More info at TODO: link mdn
+   * State to save using the History API. This cannot contain any reactive
+   * values and some primitives like Symbols are forbidden. More info at
+   * https://developer.mozilla.org/en-US/docs/Web/API/History/state
    */
   state?: HistoryState
 }
@@ -247,8 +249,18 @@ export interface _RouteRecordBase extends PathParserOptions {
 
 /**
  * Interface to type `meta` fields in route records.
+ *
+ * @example
+ *
+ * ```ts
+ * declare module 'vue-router' {
+ *   interface RouteMeta {
+ *     requiresAuth?: boolean
+ *   }
+ *  }
+ * ```
  */
-export interface RouteMeta extends Record<string | number | symbol, any> {}
+export interface RouteMeta extends Record<string | number | symbol, unknown> {}
 
 /**
  * @internal

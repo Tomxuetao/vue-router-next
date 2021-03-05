@@ -1,3 +1,29 @@
+## [4.0.4](https://github.com/vuejs/vue-router-next/compare/v4.0.3...v4.0.4) (2021-02-19)
+
+### Bug Fixes
+
+- **devtools:** id and label ([#742](https://github.com/vuejs/vue-router-next/issues/742)) ([d034307](https://github.com/vuejs/vue-router-next/commit/d034307444860fb834b0f5b5a1ddd0cce9d6d842))
+- **guards:** vue-class-component call guards on first... ([#755](https://github.com/vuejs/vue-router-next/issues/755)) ([06f942d](https://github.com/vuejs/vue-router-next/commit/06f942d0fbe1c5c86dc7e17d38c00d595854bd4f))
+- **matcher:** force leading slash with optional param in multi segments ([11c882f](https://github.com/vuejs/vue-router-next/commit/11c882f8f3b56d2c87fc095c46eb8050fbbf61df))
+- **warn:** should not warn missing optional params in aliases ([92f8901](https://github.com/vuejs/vue-router-next/commit/92f8901f54775cb4b3d1f2415b6a2b3ff77eb440))
+
+### Features
+
+- **types:** make meta type safe with unknown ([eef0472](https://github.com/vuejs/vue-router-next/commit/eef0472e3589ed0a6df0528a7b96f1d7bf316843))
+
+## [4.0.3](https://github.com/vuejs/vue-router-next/compare/v4.0.2...v4.0.3) (2021-01-11)
+
+### Bug Fixes
+
+- **hash:** allow base tag different from base parameter ([85b1bff](https://github.com/vuejs/vue-router-next/commit/85b1bff96fbb6e21cd556b688f6085b6fbfe993f)), closes [#685](https://github.com/vuejs/vue-router-next/issues/685)
+- **link:** use replace prop ([6edba5c](https://github.com/vuejs/vue-router-next/commit/6edba5cf676bde94e5ebdb370a4146dc8f6b058e)), closes [#702](https://github.com/vuejs/vue-router-next/issues/702)
+
+### Features
+
+- **types:** expose RouteParamsRaw ([09bbc89](https://github.com/vuejs/vue-router-next/commit/09bbc895cd422af8354664062b29131ae32472d7))
+- **warn:** more specific warnings ([2cd8d86](https://github.com/vuejs/vue-router-next/commit/2cd8d867beda6f7c54578d40934774547866e069))
+- **warn:** warn defineAsyncComponent usage in routes ([#682](https://github.com/vuejs/vue-router-next/issues/682)) ([9520d66](https://github.com/vuejs/vue-router-next/commit/9520d66112c0f2922f4284cda1e75b316ddf3488))
+
 ## [4.0.2](https://github.com/vuejs/vue-router-next/compare/v4.0.1...v4.0.2) (2020-12-27)
 
 ### Bug Fixes

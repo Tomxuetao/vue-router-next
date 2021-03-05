@@ -88,12 +88,16 @@ const routes = [
 ]
 ```
 
-In this specific scenario we are using a [custom regexp](/guide/essentials/route-matching-syntax.md#custom-regexp-in-params) between parentheses and marking the `pathMatch` param as [optionally repeatable](/guide/essentials/route-matching-syntax.md#optional-parameters). This is to allows us to directly navigate to the route if we need to by splitting the `path` into an array:
+In this specific scenario we are using a [custom regexp](/guide/essentials/route-matching-syntax.md#custom-regexp-in-params) between parentheses and marking the `pathMatch` param as [optionally repeatable](/guide/essentials/route-matching-syntax.md#optional-parameters). This allows us to directly navigate to the route if we need to by splitting the `path` into an array:
 
 ```js
 this.$router.push({
   name: 'NotFound',
-  params: { pathMatch: this.$route.path.split('/') },
+  // preserve current path and remove the first char to avoid the target URL starting with `//`
+  params: { pathMatch: this.$route.path.substring(1).split('/') },
+  // preserve existing query and hash if any
+  query: this.$route.query,
+  hash: this.$route.hash,
 })
 ```
 

@@ -2,13 +2,8 @@
  * @jest-environment jsdom
  */
 import { defineComponent, h } from 'vue'
-import { mount } from '../mount'
-import {
-  createRouter,
-  RouterView,
-  createMemoryHistory,
-  RouterOptions,
-} from '../../src'
+import { mount } from '@vue/test-utils'
+import { createRouter, createMemoryHistory, RouterOptions } from '../../src'
 
 const nextCallbacks = {
   Default: jest.fn(),
@@ -56,7 +51,7 @@ describe('beforeRouteEnter next callback', () => {
       ...options,
     })
 
-    const wrapper = await mount(
+    const wrapper = mount(
       {
         template: `
       <div>
@@ -64,9 +59,12 @@ describe('beforeRouteEnter next callback', () => {
         <router-view name="other"/>
       </div>
       `,
-        components: { RouterView },
       },
-      { router }
+      {
+        global: {
+          plugins: [router],
+        },
+      }
     )
 
     return { wrapper, router }
